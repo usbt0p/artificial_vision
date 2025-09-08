@@ -1,1 +1,5 @@
 black
+numpy
+matplotlib
+opencv-python
+torch

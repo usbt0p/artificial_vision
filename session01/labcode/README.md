@@ -17,7 +17,6 @@ By the end of this lab, students will be able to:
 7. **Connect theoretical concepts to practical implementations**
 8. **Pytorch  for next time**
 
-
 ## Lab Structure
 
 ### Materials Provided
@@ -95,6 +94,7 @@ print(f"OpenCV version: {cv2.__version__}")
 ```
 
 ## Lab Session Structure
+
 ### Hands-on Implementation  
 
 Students work through exercises in order:
@@ -102,13 +102,13 @@ Students work through exercises in order:
 1. **Exercise 1.1**: OpenCV Calibration Code (15 min)
 
 Extra/Additional:  
+
 1. **Exercise E1.1**: PyTorch tensor operations  
-2. **Exercise E1.2**: Geometric transformations 
-3. **Exercise E1.3**: Corner detection analysis 
+2. **Exercise E1.2**: Geometric transformations
+3. **Exercise E1.3**: Corner detection analysis
 4. **Exercise E1.4**: Calibration quality assessment  
 5. **Exercise E1.5**: Homography robustness  
-6. **Exercise E1.6**: Color space analysis 
-
+6. **Exercise E1.6**: Color space analysis
 
 ### Recommended Approach
 
@@ -119,22 +119,22 @@ Extra/Additional:
 5. **Answer questions** to deepen understanding
 6. **Experiment** with different parameters and edge cases
 
-
-
-
 ## Challenge Problems (Advanced and optional)
 
 ### Challenge 1: Stereo Camera Calibration
+
 - Implement two-camera calibration system
 - Validate epipolar geometry constraints
 - Create rectification pipeline
 
 ### Challenge 2: Real-time Calibration
+
 - Build live webcam calibration interface
 - Implement automatic quality assessment
 - Add real-time parameter visualization
 
 ### Challenge 3: Custom Calibration Patterns
+
 - Implement circular dot pattern detection
 - Compare accuracy vs. checkerboard patterns
 - Handle partial pattern visibility
@@ -142,11 +142,12 @@ Extra/Additional:
 ## Connections to Course Materials
 
 ### From Lecture 1
+
 - **Pinhole camera model** → Camera calibration implementation
 - **Homogeneous coordinates** → Geometric transformation matrices
 
-
 ### To Lecture 2 (Preview)
+
 - **Projective geometry** → Homography estimation algorithms
 - **Optimization theory** → Bundle adjustment and RANSAC
 - **Image filtering** builds on histogram equalization concepts
@@ -157,11 +158,13 @@ Extra/Additional:
 ## Additional Resources
 
 ### Reference Materials
+
 - [Zhang's Camera Calibration Paper](https://www.microsoft.com/en-us/research/publication/a-flexible-new-technique-for-camera-calibration/)
 - [Multiple View Geometry (Hartley & Zisserman)](https://www.robots.ox.ac.uk/~vgg/hzbook/)
 - [OpenCV Calibration Documentation](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html)
 
 ### Debugging Tools
+
 ```python
 # Visualization helpers
 def debug_corners(img, corners):
@@ -178,6 +181,7 @@ def debug_reprojection(img_points, proj_points):
 ```
 
 ### Performance Optimization
+
 ```python
 # Use vectorized operations
 def fast_transform_points(points, H):
@@ -190,17 +194,20 @@ def fast_transform_points(points, H):
 ## Support and Help
 
 ### During Lab Session
+
 - **TA support**: Available for implementation questions
 - **Peer collaboration**: Encouraged for concept discussion
 - **Instructor consultation**: For theoretical clarifications
 
 ### Common Issues
+
 1. **Import errors**: Check environment activation
 2. **Numerical instability**: Ensure point normalization
 3. **Calibration failure**: Verify checkerboard detection
 4. **Poor results**: Check parameter ranges and data quality
 
 ### Getting Help
+
 ```python
 # Include this information when asking for help:
 print(f"Python version: {sys.version}")
@@ -224,6 +231,7 @@ Upon completion, students should be able to:
 ## Submission Requirements
 
 ### Required Deliverables
+
 1. **Completed exercise file** with all TODO sections implemented
 2. **Analysis report** (2-3 pages) discussing:
    - Implementation challenges and solutions
@@ -237,6 +245,7 @@ Upon completion, students should be able to:
    - Undistorted image examples
 
 ### Optional Deliverables (Extra Credit)
+
 1. **Challenge problem implementations**
 2. **Novel experimental analysis**
 3. **Performance optimization improvements**
