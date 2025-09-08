@@ -43,28 +43,30 @@ class Lab1Exercises:
         def numpy_to_torch(img_np: np.ndarray) -> torch.Tensor:
             """
             Convert HxWxC numpy array to CxHxW torch tensor
-
-            TODO: Implement this function
             Hints:
             - Use np.transpose or tensor.permute to change channel order
             - Convert to float tensor for processing
             - Handle both grayscale (HxW) and color (HxWxC) images
             """
-            # TODO: Your implementation here
-            pass
+            if img_np.ndim == 2:  # Grayscale HxW
+                tensor = torch.from_numpy(img_np).float().unsqueeze(0)
+            elif img_np.ndim == 3:  # Color HxWxC
+                tensor = torch.from_numpy(img_np).float().permute(2, 0, 1)
+            return tensor
 
         def torch_to_numpy(img_torch: torch.Tensor) -> np.ndarray:
             """
             Convert CxHxW torch tensor to HxWxC numpy array
-
-            TODO: Implement this function
             Hints:
             - Use tensor.permute to change channel order
             - Convert back to numpy with .cpu().numpy()
             - Handle both 2D and 3D tensors
             """
-            # TODO: Your implementation here
-            pass
+            if img_torch.ndim == 2:
+                arr = img_torch.cpu().numpy()
+            elif img_torch.ndim == 3:
+                arr = img_torch.permute(1, 2, 0).cpu().numpy()
+            return arr
 
         # Test your implementation
         test_img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
@@ -92,11 +94,26 @@ class Lab1Exercises:
         Q3: What are the memory implications of different tensor layouts?
         Q4: How does tensor layout affect convolution performance?
         
-        Write your answers here:
-        A1: 
-        A2: 
-        A3: 
-        A4: 
+        A1: PyTorch uses channel-first (C, H, W) format for tensors to optimize
+            for deep learning operations, while OpenCV uses channel-last (H, W, C)
+            format for compatibility with standard image formats and libraries. This
+            difference is due to their primary use cases and performance considerations.
+
+        A2: GPU tensors are used when you want to leverage the parallel processing
+            power of GPUs for faster computation, especially for large-scale or real-time
+            image processing and deep learning tasks. CPU tensors are sufficient
+            for small-scale or non-parallel tasks.
+
+        A3: Different tensor layouts affect how data is stored in memory.
+            Channel-first (C, H, W) can be more cache-friendly for certain operations
+            (like convolutions in deep learning), while channel-last (H, W, C) may be
+            more efficient for image display and manipulation. Inefficient layouts can
+            lead to increased memory usage and slower access times.
+
+        A4: Tensor layout affects convolution performance because deep learning libraries
+            are optimized for specific memory layouts. Channel-first (C, H, W) allows
+            for more efficient memory access patterns and better use of vectorized operations,
+            leading to faster convolutions.
         """
 
     # ================================
@@ -753,7 +770,7 @@ def run_all_exercises():
     print("Uncomment the exercise calls below as you implement them.\n")
 
     # Uncomment as you complete each exercise
-    # exercises.exercise_1_1_tensor_operations()
+    exercises.exercise_1_1_tensor_operations()
     # exercises.exercise_1_2_transformations()
     # exercises.exercise_1_3_corner_analysis()
     # exercises.exercise_1_4_calibration_analysis()
