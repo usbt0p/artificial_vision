@@ -89,14 +89,19 @@ class SamplingAnalysis:
         h, w = size
         x, y = np.meshgrid(np.arange(w), np.arange(h))
 
-        # TODO: Implement sinusoidal grating creation
+        # Implement sinusoidal grating creation
         # Hint: Use np.sin() with appropriate phase calculation
         # Consider orientation using rotation matrix
         # The grating should have values in [0, 255] as uint8
         # Formula: grating = 0.5 + 0.5 * sin(2π * frequency * x_rotated)
         # where x_rotated accounts for the orientation
 
-        pass  # Replace with your implementation
+        theta = np.deg2rad(orientation)
+        x_rot = x * np.cos(theta) + y * np.sin(theta)
+        grating = 0.5 + 0.5 * np.sin(2 * np.pi * frequency * x_rot)
+        grating = np.clip(grating * 255, 0, 255).astype(np.uint8)
+
+        return grating
 
     def demonstrate_aliasing(self, frequency: float, downsample_factor: int) -> dict:
         """
@@ -112,20 +117,22 @@ class SamplingAnalysis:
         # Create high-resolution grating
         original = self.create_sine_grating((512, 512), frequency)
 
-        # TODO: Implement naive downsampling (aliased)
+        # Implement naive downsampling (aliased)
         # Simply take every downsample_factor-th pixel
         # Example: aliased = original[::downsample_factor, ::downsample_factor]
-        aliased = None  # Your implementation here
+        aliased = original[::downsample_factor, ::downsample_factor]
 
-        # TODO: Implement anti-aliased downsampling
+        # Implement anti-aliased downsampling
         # Apply Gaussian filter before downsampling
         # Rule of thumb: sigma ≈ downsample_factor / 2
         # Use cv2.GaussianBlur() then downsample
         sigma = downsample_factor / 2.0
 
         # Your anti-aliasing implementation here
-        filtered = None  # Apply Gaussian blur to original
-        anti_aliased = None  # Then downsample the filtered image
+        # Apply Gaussian blur to original
+        filtered = cv2.GaussianBlur(original, (0, 0), sigma)
+        # Then downsample the filtered image
+        anti_aliased = filtered[::downsample_factor, ::downsample_factor]
 
         # Calculate theoretical aliased frequency
         theoretical_alias_freq = abs(
@@ -149,13 +156,21 @@ class SamplingAnalysis:
         Returns:
             Log magnitude spectrum (shifted to center)
         """
-        # TODO: Implement FFT analysis
+        # Implement FFT analysis
         # 1. Compute 2D FFT using np.fft.fft2()
+
+        ftt = np.fft.fft2(image)
+
         # 2. Shift zero frequency to center using np.fft.fftshift()
+
+        ftt_shifted = np.fft.fftshift(ftt)
+
         # 3. Compute log magnitude spectrum: log(abs(fft) + 1)
         # This should return the frequency analysis for visualization
 
-        pass  # Your implementation here
+        log_magnitude = np.log(np.abs(ftt_shifted) + 1)
+
+        return log_magnitude
 
 
 # =============================================================================
@@ -820,6 +835,7 @@ def run_lab_exercises():
     print("\n1. Testing Sampling and Aliasing Analysis")
     print("-" * 40)
     # Your test code here
+    # Example:
 
     # Exercise 2: Color Space Conversion
     print("\n2. Testing Color Space Conversion")
@@ -868,6 +884,27 @@ def visualize_all_results():
     # TODO: Students implement comprehensive visualization
     # Should include:
     # - Aliasing demonstration plots
+    aliasing_results = SamplingAnalysis().demonstrate_aliasing(
+        frequency=0.01, downsample_factor=32
+    )
+    print(
+        f"Theoretical aliased frequency: {aliasing_results["theoretical_alias_freq"]}"
+    )
+    # Visualize results
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 3, 1)
+    plt.title("Original Grating")
+    plt.imshow(aliasing_results["original"], cmap="gray")
+    plt.axis("off")
+    plt.subplot(1, 3, 2)
+    plt.title("Aliased (Naive Downsample)")
+    plt.imshow(aliasing_results["aliased"], cmap="gray")
+    plt.axis("off")
+    plt.subplot(1, 3, 3)
+    plt.title("Anti-Aliased (Gaussian + Downsample)")
+    plt.imshow(aliasing_results["anti_aliased"], cmap="gray")
+    plt.axis("off")
+
     # - Color space conversion comparisons
     # - Enhancement method comparisons
     # - Convolution performance charts
@@ -958,6 +995,6 @@ if __name__ == "__main__":
     run_lab_exercises()
 
     # Students should also implement and call:
-    # visualize_all_results()
+    visualize_all_results()
     # performance_analysis()
     # write_lab_report()
