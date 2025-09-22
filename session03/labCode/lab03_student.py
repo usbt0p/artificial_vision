@@ -102,39 +102,43 @@ class BottleneckBlock(nn.Module):
     ):
         super(BottleneckBlock, self).__init__()
 
-        # TODO: Implement the bottleneck block
+        # Implement the bottleneck block
         # Hint: You need:
         # - 1x1 conv to reduce channels (in_channels -> out_channels)
         # - 3x3 conv with given stride (out_channels -> out_channels)
         # - 1x1 conv to expand channels (out_channels -> out_channels * expansion)
         # - BatchNorm + ReLU after each conv (except last)
 
-        self.conv1 = None  # TODO: 1x1 conv
-        self.bn1 = None  # TODO: BatchNorm
-        self.conv2 = None  # TODO: 3x3 conv with stride
-        self.bn2 = None  # TODO: BatchNorm
-        self.conv3 = None  # TODO: 1x1 conv (expansion)
-        self.bn3 = None  # TODO: BatchNorm
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
+        self.bn1 = nn.ReLU(nn.BatchNorm2d(out_channels))
+        self.conv2 = nn.Conv2d(
+            out_channels, out_channels, kernel_size=3, stride=stride, padding=1
+        )
+        self.bn2 = nn.ReLU(nn.BatchNorm2d(out_channels))
+        self.conv3 = nn.Conv2d(
+            out_channels, out_channels * self.expansion, kernel_size=1, stride=1
+        )
+        self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
         self.downsample = downsample
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # TODO: Implement forward pass for bottleneck block
+        # Implement forward pass for bottleneck block
         identity = x
 
-        # TODO: Apply conv1 + bn1 + relu
-        out = None
+        # Apply conv1 + bn1 + relu
+        out = self.bn1(self.conv1(x))
 
-        # TODO: Apply conv2 + bn2 + relu
-        out = None
+        # Apply conv2 + bn2 + relu
+        out = self.bn2(self.conv2(out))
 
-        # TODO: Apply conv3 + bn3 (no relu)
-        out = None
+        # Apply conv3 + bn3 (no relu)
+        out = self.bn3(self.conv3(out))
 
-        # TODO: Apply skip connection
+        # Apply skip connection
         if self.downsample is not None:
-            identity = None  # TODO: Apply downsample
+            identity = self.downsample(identity)
 
-        # TODO: Add identity and apply final ReLU
+        # Add identity and apply final ReLU
         out += identity
         out = F.relu(out)
 
