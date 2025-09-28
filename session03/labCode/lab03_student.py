@@ -30,7 +30,9 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.optim as optim
 import time
 
-import pathlib
+import os
+
+currentDirectory = os.path.dirname(os.path.abspath(__file__))
 
 warnings.filterwarnings("ignore")
 
@@ -808,7 +810,9 @@ def test_resnet_implementation():
 
     def load_cifar10(batch_size=64):
         # https://www.cs.toronto.edu/~kriz/cifar.html
-        cifar_path = pathlib.Path("./cifar-10-batches-py/data_batch_1")
+        cifar_path = os.path.join(
+            currentDirectory, "cifar-10-batches-py", "data_batch_1"
+        )
         with open(cifar_path, "rb") as f:
             batch = pickle.load(f, encoding="bytes")
 
