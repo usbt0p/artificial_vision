@@ -78,20 +78,16 @@ class DecoderBlock(nn.Module):
 
         # TODO Task 1.2: Initialize upsampling layer
         if upsampling == "transpose":
-            self.up = nn.ConvTranspose2d(
-                in_channels, out_channels, kernel_size=2, stride=2
-            )
+            self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
         else:  # bilinear
             self.up = nn.Sequential(
                 nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True),
-                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
             )
 
         # TODO Task 1.2: Initialize double convolution
         # Note: Input will be concatenated features (in_channels + skip_channels)
-        self.conv = DoubleConv(
-            torch.cat([in_channels, skip_channels], dim=1), out_channels
-        )
+        self.conv = DoubleConv(in_channels + skip_channels, out_channels)
 
     def forward(self, x, skip_features):
         # TODO Task 1.2: Implement forward pass
@@ -100,8 +96,12 @@ class DecoderBlock(nn.Module):
         # 3. Concatenate with skip_features
         # 4. Apply double convolution
         x = self.up(x)
-        return x
+        diffY = skip_features.size()[2] - x.size()[2]
+        diffX = skip_features.size()[3] - x.size()[3]
 
+        x = F.pad(x, [diffX // 2, diffX - diffX // 2,
+                       diffY // 2, diffY - diffY // 2])
+        return self.conv(torch.cat([x, skip_features], dim=1))
 
 class UNet(nn.Module):
     """Complete U-Net architecture"""
@@ -115,14 +115,21 @@ class UNet(nn.Module):
 
         # TODO: Create encoder blocks
         # Hint: First block takes in_channels, others take features[i-1]
+        self.encoders.append(EncoderBlock(in_channels, features[0]))
+        for i in range(1, len(features)):
+            self.encoders.append(EncoderBlock(features[i-1], features[i]))
 
         # TODO Task 1.3: Bottleneck (deepest part)
-        self.bottleneck = None  # TODO: DoubleConv at the bottom
+        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
 
         # TODO Task 1.3: Build decoder path
         self.decoders = nn.ModuleList()
 
         # TODO: Create decoder blocks (in reverse order)
+        for i in range(len(features)-1, 0, -1):
+            pass
+            #self.decoders.append(DecoderBlock(features[i]*2, features[i-1], features[i-1])) Esto aún no estoy seguro
+        #self.decoders.append(DecoderBlock(features[0]*2, in_channels, features[0]))
 
         # TODO Task 1.4: Final output layer
         self.final_conv = None  # TODO: Conv2d to get desired output channels
