@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import time
 from typing import Dict, List, Tuple
 import warnings
+import Utils
 
 warnings.filterwarnings("ignore")
 
@@ -50,7 +51,7 @@ from lab03_student import *  # Use student template for practice
 from utils import *
 
 # Check device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device(Utils.canUseGPU())
 print(f"Using device: {device}")
 
 # %% [markdown]

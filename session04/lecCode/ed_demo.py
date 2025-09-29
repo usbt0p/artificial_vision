@@ -5,6 +5,7 @@ import torch, torch.nn as nn, torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
+import Utils
 
 
 # ----------------- Data -----------------
@@ -193,7 +194,7 @@ def sample_preds(model, device, out_path, n=8, h=128, w=128):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--epochs", type=int, default=5)
+    ap.add_argument("--epochs", type=int, default=1)
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--h", type=int, default=128)
     ap.add_argument("--w", type=int, default=128)
@@ -205,9 +206,7 @@ def main():
         choices=["noskip", "skips"],
         help="Choose 'noskip' (EncDec) or 'skips' (EncDecWithSkips)",
     )
-    ap.add_argument(
-        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
-    )
+    ap.add_argument("--device", type=str, default=Utils.canUseGPU())
     args = ap.parse_args()
 
     device = torch.device(args.device)

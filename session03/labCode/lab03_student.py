@@ -31,6 +31,7 @@ import torch.optim as optim
 import time
 
 import os
+import Utils
 
 currentDirectory = os.path.dirname(os.path.abspath(__file__))
 
@@ -918,7 +919,7 @@ def test_resnet_implementation():
                 train_loader,
                 val_loader,
                 epochs=2,
-                device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                device=Utils.canUseGPU(),
                 save_model=True,
                 model_name=name,
             )
