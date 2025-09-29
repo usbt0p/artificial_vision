@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 import Utils
 
 
+currentDirectory = os.path.dirname(os.path.abspath(__file__))
+
+
 # ----------------- Data -----------------
 def draw_circle(h, w, cx, cy, r):
     yy, xx = np.mgrid[:h, :w]
@@ -229,15 +232,19 @@ def main():
         loss = train_one_epoch(model, loader, opt, lossf, device)
         print(f"Epoch {ep}/{args.epochs}  loss={loss:.4f}")
 
+    outputPath = os.path.join(
+        currentDirectory, "outputs", f"sample_preds_{args.model}.png"
+    )
+
     sample_preds(
         model,
         device,
-        out_path=f"outputs/sample_preds_{args.model}.png",
+        out_path=outputPath,
         n=8,
         h=args.h,
         w=args.w,
     )
-    print(f"Saved predictions grid to outputs/sample_preds_{args.model}.png")
+    print(f"Saved predictions grid to {outputPath}")
 
 
 if __name__ == "__main__":
