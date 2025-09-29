@@ -36,11 +36,17 @@ class DoubleConv(nn.Module):
         # TODO Task 1.1: Implement double convolution block
         # Hint: Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU
         # Use kernel_size=3, padding=1 to maintain spatial dimensions
-        self.double_conv = None  # TODO: Replace with your implementation
+        self.double_conv =  nn.Sequential(
+                    nn.Conv2d ( in_channels , out_channels , 3 , padding =1) ,
+                    nn.BatchNorm2d ( out_channels ) ,
+                    nn.ReLU ( inplace = True ) ,
+                    nn.Conv2d ( out_channels , out_channels , 3 , padding =1) ,
+                    nn.BatchNorm2d ( out_channels ) ,
+                    nn.ReLU ( inplace = True ) ,
+                    )
 
     def forward(self, x):
-        # TODO Task 1.1: Implement forward pass
-        pass
+        return self.double_conv(x)
 
 
 class EncoderBlock(nn.Module):
@@ -50,14 +56,14 @@ class EncoderBlock(nn.Module):
         super().__init__()
         # TODO Task 1.1: Initialize layers
         # You need: DoubleConv and MaxPool2d
-        self.conv = None  # TODO
-        self.pool = None  # TODO
+        self.conv = DoubleConv(in_channels, out_channels)  # TODO
+        self.pool = nn.MaxPool2d(kernel_size=2)  # TODO
 
     def forward(self, x):
         # TODO Task 1.1: Implement forward pass
         # Return both: features before pooling (for skip connection) and after pooling
-        features = None  # TODO: Apply double convolution
-        pooled = None  # TODO: Apply pooling to features
+        features = self.conv(x)
+        pooled = self.pool(features)
         return features, pooled
 
 
@@ -72,13 +78,16 @@ class DecoderBlock(nn.Module):
 
         # TODO Task 1.2: Initialize upsampling layer
         if upsampling == "transpose":
-            self.up = None  # TODO: Use ConvTranspose2d
+            self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
         else:  # bilinear
-            self.up = None  # TODO: Use Upsample + Conv2d
+            self.up = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True),
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+            )
 
         # TODO Task 1.2: Initialize double convolution
         # Note: Input will be concatenated features (in_channels + skip_channels)
-        self.conv = None  # TODO
+        self.conv = DoubleConv(torch.cat([in_channels, skip_channels], dim=1), out_channels)
 
     def forward(self, x, skip_features):
         # TODO Task 1.2: Implement forward pass
@@ -86,7 +95,7 @@ class DecoderBlock(nn.Module):
         # 2. Handle dimension mismatch if necessary (crop or pad)
         # 3. Concatenate with skip_features
         # 4. Apply double convolution
-        x = None  # TODO: Complete implementation
+        x = self.up(x)
         return x
 
 
