@@ -17,8 +17,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import warnings
-import Utils
+import sys
 import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+import Utils
 
 warnings.filterwarnings("ignore")
 
@@ -59,8 +62,8 @@ class EncoderBlock(nn.Module):
         super().__init__()
         # TODO Task 1.1: Initialize layers
         # You need: DoubleConv and MaxPool2d
-        self.conv = DoubleConv(in_channels, out_channels)  # TODO
-        self.pool = nn.MaxPool2d(kernel_size=2)  # TODO
+        self.conv = DoubleConv(in_channels, out_channels)
+        self.pool = nn.MaxPool2d(kernel_size=2)
 
     def forward(self, x):
         # TODO Task 1.1: Implement forward pass
@@ -79,7 +82,7 @@ class DecoderBlock(nn.Module):
         super().__init__()
         self.upsampling = upsampling
 
-        # TODO Task 1.2: Initialize upsampling layer
+        # Task 1.2: Initialize upsampling layer
         if upsampling == "transpose":
             self.up = nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size=2, stride=2
@@ -90,12 +93,12 @@ class DecoderBlock(nn.Module):
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             )
 
-        # TODO Task 1.2: Initialize double convolution
+        # Task 1.2: Initialize double convolution
         # Note: Input will be concatenated features (in_channels + skip_channels)
-        self.conv = DoubleConv(in_channels + skip_channels, out_channels)
+        self.conv = DoubleConv(out_channels + skip_channels, out_channels)
 
     def forward(self, x, skip_features):
-        # TODO Task 1.2: Implement forward pass
+        # Task 1.2: Implement forward pass
         # 1. Upsample x
         # 2. Handle dimension mismatch if necessary (crop or pad)
         # 3. Concatenate with skip_features
@@ -114,48 +117,58 @@ class UNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=1, features=[64, 128, 256, 512]):
         super().__init__()
 
-        # TODO Task 1.3: Build encoder path
+        # Task 1.3: Build encoder path
         self.encoders = nn.ModuleList()
         self.pools = nn.ModuleList()
 
-        # TODO: Create encoder blocks
+        # : Create encoder blocks
         # Hint: First block takes in_channels, others take features[i-1]
         self.encoders.append(EncoderBlock(in_channels, features[0]))
         for i in range(1, len(features)):
             self.encoders.append(EncoderBlock(features[i - 1], features[i]))
 
-        # TODO Task 1.3: Bottleneck (deepest part)
+        # Task 1.3: Bottleneck (deepest part)
         self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
 
-        # TODO Task 1.3: Build decoder path
+        # Task 1.3: Build decoder path
         self.decoders = nn.ModuleList()
 
-        # TODO: Create decoder blocks (in reverse order)
+        # Create decoder blocks (in reverse order)
+        self.decoders.append(
+            DecoderBlock(features[-1] * 2, features[-1], features[-1])
+        )  # 1024 -> 512
         for i in range(len(features) - 1, 0, -1):
-            pass
-            # self.decoders.append(DecoderBlock(features[i]*2, features[i-1], features[i-1])) Esto aún no estoy seguro
-        # self.decoders.append(DecoderBlock(features[0]*2, in_channels, features[0]))
+            self.decoders.append(
+                DecoderBlock(features[i], features[i - 1], features[i - 1])
+            )
 
-        # TODO Task 1.4: Final output layer
-        self.final_conv = None  # TODO: Conv2d to get desired output channels
+        # Task 1.4: Final output layer
+        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
         # TODO Task 1.4: Connect everything together
         skip_connections = []
 
         # Encoder path
-        # TODO: Process through encoders, save skip connections
+        # Process through encoders, save skip connections
+        for encoder in self.encoders:
+            features, x = encoder(x)
+            skip_connections.append(features)
 
         # Bottleneck
-        # TODO: Process through bottleneck
-
+        # Process through bottleneck
+        x = self.bottleneck(x)
+        skip_connections = skip_connections[::-1]  # Reverse for decoding
         # Decoder path
-        # TODO: Process through decoders with skip connections
+        # Process through decoders with skip connections
+        for idx, decoder in enumerate(self.decoders):
+            x = decoder(x, skip_connections[idx])
 
         # Final layer
-        # TODO: Apply final convolution
+        # Apply final convolution
+        x = self.final_conv(x)
 
-        return x  # TODO: Return final output
+        return x  # Return final output
 
 
 # ================== Part 2: Skip Connection Strategies ==================
@@ -304,13 +317,20 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
     for images, masks in tqdm(dataloader, desc="Training"):
         images, masks = images.to(device), masks.to(device)
 
-        # TODO: Forward pass
-        # TODO: Calculate loss
-        # TODO: Backward pass
-        # TODO: Update weights
-        # TODO: Calculate metrics
-
-        pass  # Remove this after implementation
+        # Forward pass
+        optimizer.zero_grad()
+        # Calculate loss
+        outputs = model(images)
+        loss = criterion(outputs, masks)
+        total_loss += loss.item()
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        # Update weights
+        optimizer.step()
+        # Calculate metrics
+        iou = calculate_iou(outputs, masks)
+        total_iou += iou
 
     return total_loss / len(dataloader), total_iou / len(dataloader)
 
@@ -322,14 +342,16 @@ def validate(model, dataloader, criterion, device):
     total_iou = 0
 
     with torch.no_grad():
-        # TODO: Complete validation loop
         for images, masks in tqdm(dataloader, desc="Validation"):
             images, masks = images.to(device), masks.to(device)
 
-            # TODO: Forward pass
-            # TODO: Calculate loss and metrics
-
-            pass  # Remove this after implementation
+            # Forward pass
+            outputs = model(images)
+            loss = criterion(outputs, masks)
+            total_loss += loss.item()
+            # Calculate metrics
+            iou = calculate_iou(outputs, masks)
+            total_iou += iou
 
     return total_loss / len(dataloader), total_iou / len(dataloader)
 
@@ -395,31 +417,41 @@ def main():
 
     # Setup optimizer and loss
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
-    criterion = DiceLoss()
+    # criterion = DiceLoss() #TODO Complete it and use this DiceLoss.
+    criterion = nn.BCEWithLogitsLoss()
 
     # Training loop
     train_losses = []
     val_losses = []
     train_ious = []
     val_ious = []
+    best_iou = 0.0
 
     print("Starting training...")
     for epoch in range(config["epochs"]):
-        # TODO: Train and validate
-        # TODO: Save metrics
+        # Train and validate
+        train_loss, train_iou = train_epoch(
+            model, trainLoader, optimizer, criterion, device
+        )
+        val_loss, val_iou = validate(model, valLoader, criterion, device)
+        # Save metrics
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         train_ious.append(train_iou)
         val_ious.append(val_iou)
 
-        # TODO: Print progress
+        # Print progress
         print(
             f"Epoch [{epoch+1}/{config['epochs']}], "
             f"Train Loss: {train_loss:.4f}, Train IoU: {train_iou:.4f}, "
             f"Val Loss: {val_loss:.4f}, Val IoU: {val_iou:.4f}"
         )
 
-        # TODO: Save best model
+        # Save best model
+        if val_iou > best_iou:
+            best_iou = val_iou
+            torch.save(model.state_dict(), "best_unet_model.pth")
+            print("Best model saved!")
 
     # TODO: Plot training curves
 
