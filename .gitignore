@@ -4,3 +4,7 @@ __pycache__
 images/
 imgs/
 outputs/
+
+# Models
+*.pkl
+*.pth
