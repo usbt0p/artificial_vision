@@ -77,10 +77,15 @@ class DecoderBlock(nn.Module):
     """Decoder block with upsampling, skip connection, and double convolution"""
 
     def __init__(
-        self, in_channels, skip_channels, out_channels, upsampling="transpose"
+        self,
+        in_channels,
+        out_channels,
+        skipType: "FlexibleSkipConnection",
+        upsampling="transpose",
     ):
         super().__init__()
         self.upsampling = upsampling
+        self.skipType = skipType
 
         # Task 1.2: Initialize upsampling layer
         if upsampling == "transpose":
@@ -94,8 +99,7 @@ class DecoderBlock(nn.Module):
             )
 
         # Task 1.2: Initialize double convolution
-        # Note: Input will be concatenated features (in_channels + skip_channels)
-        self.conv = DoubleConv(out_channels + skip_channels, out_channels)
+        self.conv = DoubleConv(skipType.out_channels, out_channels)
 
     def forward(self, x, skip_features):
         # Task 1.2: Implement forward pass
@@ -104,18 +108,24 @@ class DecoderBlock(nn.Module):
         # 3. Concatenate with skip_features
         # 4. Apply double convolution
         x = self.up(x)
-        diffY = skip_features.size()[2] - x.size()[2]
-        diffX = skip_features.size()[3] - x.size()[3]
 
-        x = F.pad(x, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
-        return self.conv(torch.cat([x, skip_features], dim=1))
+        x = self.skipType(x, skip_features)
+
+        return self.conv(x)
 
 
 class UNet(nn.Module):
     """Complete U-Net architecture"""
 
-    def __init__(self, in_channels=3, out_channels=1, features=[64, 128, 256, 512]):
+    def __init__(
+        self,
+        in_channels=3,
+        out_channels=1,
+        features=[64, 128, 256, 512],
+        skipMode: str = "concat",
+    ):
         super().__init__()
+        self.skipMode = skipMode
 
         # Task 1.3: Build encoder path
         self.encoders = nn.ModuleList()
@@ -132,14 +142,21 @@ class UNet(nn.Module):
 
         # Task 1.3: Build decoder path
         self.decoders = nn.ModuleList()
+        self.skipps: list[FlexibleSkipConnection] = nn.ModuleList()
 
         # Create decoder blocks (in reverse order)
+        self.skipps.append(
+            FlexibleSkipConnection(features[-1], features[-1], mode=skipMode)
+        )
         self.decoders.append(
-            DecoderBlock(features[-1] * 2, features[-1], features[-1])
+            DecoderBlock(features[-1] * 2, features[-1], skipType=self.skipps[-1])
         )  # 1024 -> 512
         for i in range(len(features) - 1, 0, -1):
+            self.skipps.append(
+                FlexibleSkipConnection(features[i - 1], features[i - 1], mode=skipMode)
+            )
             self.decoders.append(
-                DecoderBlock(features[i], features[i - 1], features[i - 1])
+                DecoderBlock(features[i], features[i - 1], skipType=self.skipps[-1])
             )
 
         # Task 1.4: Final output layer
@@ -159,6 +176,7 @@ class UNet(nn.Module):
         # Process through bottleneck
         x = self.bottleneck(x)
         skip_connections = skip_connections[::-1]  # Reverse for decoding
+
         # Decoder path
         # Process through decoders with skip connections
         for idx, decoder in enumerate(self.decoders):
@@ -221,6 +239,7 @@ class FlexibleSkipConnection(nn.Module):
     def __init__(self, decoder_channels, skip_channels, mode="concat"):
         super().__init__()
         self.mode = mode
+        self.out_channels = decoder_channels
 
         if mode == "concat":
             # Task 2.1: Setup for concatenation
@@ -246,6 +265,15 @@ class FlexibleSkipConnection(nn.Module):
             )
 
     def forward(self, decoder_features, skip_features):
+
+        diffY = skip_features.size()[2] - decoder_features.size()[2]
+        diffX = skip_features.size()[3] - decoder_features.size()[3]
+
+        decoder_features = F.pad(
+            decoder_features,
+            [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2],
+        )
+
         # Implement forward pass based on mode
         if self.mode == "concat":
             return self.conv(torch.cat([decoder_features, skip_features], dim=1))
@@ -477,7 +505,7 @@ def main():
     )
 
     # Initialize model
-    model = UNet(in_channels=3, out_channels=1).to(device)
+    model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"]).to(device)
 
     # Setup optimizer and loss
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
