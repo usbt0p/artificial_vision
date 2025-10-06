@@ -179,20 +179,39 @@ class AttentionGate(nn.Module):
 
     def __init__(self, gate_channels, skip_channels):
         super().__init__()
-        # TODO Task 2.3: Implement attention gate
+        # Task 2.3: Implement attention gate
         # You need: Conv2d layers for gating signal, skip features, and psi
-        self.W_g = None  # TODO: Conv2d for gating signal
-        self.W_x = None  # TODO: Conv2d for skip features
-        self.psi = None  # TODO: Conv2d for final attention coefficients
+        inter = gate_channels // 2
+
+        # Conv2d for gating signal
+        self.W_g = nn.Conv2d(gate_channels, inter, 1)
+
+        # Conv2d for skip features
+        self.W_x = nn.Conv2d(skip_channels, inter, 1)
+
+        # Conv2d for final attention coefficients
+        self.psi = nn.Conv2d(inter, 1, 1)
+
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, gate, skip):
-        # TODO Task 2.3: Implement attention mechanism
+        # Task 2.3: Implement attention mechanism
+
         # 1. Process gate and skip through respective convolutions
+        g1, x1 = self.W_g(gate), self.W_x(skip)
+
+        if g1.shape[2:] != x1.shape[2:]:
+            g1 = F.interpolate(
+                g1, size=x1.shape[2:], mode="bilinear", align_corners=True
+            )
+
         # 2. Add and apply ReLU
+        attention = self.relu(g1 + x1)
+
         # 3. Apply psi convolution and sigmoid
+        attention = torch.sigmoid(self.psi(attention))
+
         # 4. Multiply with skip features
-        attention = None  # TODO
         return skip * attention
 
 
@@ -204,32 +223,46 @@ class FlexibleSkipConnection(nn.Module):
         self.mode = mode
 
         if mode == "concat":
-            # TODO Task 2.1: Setup for concatenation
+            # Task 2.1: Setup for concatenation
             # Output conv to handle concatenated channels
-            self.conv = None  # TODO
+            self.conv = nn.Conv2d(
+                decoder_channels + skip_channels, decoder_channels, 3, padding=1
+            )
 
         elif mode == "add":
-            # TODO Task 2.2: Setup for addition
+            # Task 2.2: Setup for addition
             # May need 1x1 conv to match channels
-            self.proj = None  # TODO: Handle channel mismatch
+            self.proj = (
+                nn.Conv2d(skip_channels, decoder_channels, 1)
+                if skip_channels != decoder_channels
+                else nn.Identity()
+            )
 
         elif mode == "attention":
-            # TODO Task 2.3: Setup attention gate
-            self.attention_gate = None  # TODO
-            self.conv = None  # TODO: Output conv after attention
+            # Task 2.3: Setup attention gate
+            self.attention_gate = AttentionGate(decoder_channels, skip_channels)
+            self.conv = nn.Conv2d(
+                decoder_channels + skip_channels, decoder_channels, 3, padding=1
+            )
 
     def forward(self, decoder_features, skip_features):
-        # TODO: Implement forward pass based on mode
+        # Implement forward pass based on mode
         if self.mode == "concat":
-            # TODO Task 2.1
-            pass
+            return self.conv(torch.cat([decoder_features, skip_features], dim=1))
+
         elif self.mode == "add":
-            # TODO Task 2.2
-            pass
+            return decoder_features + self.proj(skip_features)
+
         elif self.mode == "attention":
-            # TODO Task 2.3
-            pass
-        return None  # TODO
+            return self.conv(
+                torch.cat(
+                    [
+                        decoder_features,
+                        self.attention_gate(decoder_features, skip_features),
+                    ],
+                    dim=1,
+                )
+            )
 
 
 # ================== Part 3: Loss Functions ==================
