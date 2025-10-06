@@ -58,24 +58,30 @@ class FCN32s(nn.Module):
         super().__init__()
 
         # TODO Task 1.1: Load pretrained ResNet50 and extract layers
-
         # 1. Load models.resnet50(pretrained=True)
         # 2. Extract conv1, bn1, relu, maxpool
         # 3. Extract layer1, layer2, layer3, layer4
-        resnet = models.resnet50(models.ResNet50_Weights.IMAGENET1K_V2)
-        # remove the last 2 layers
-        self.backbone = nn.Sequential(*list(resnet.children())[:-2])
+        resnet = models.resnet50(models.ResNet50_Weights)
+        self.conv1 = resnet.conv1
+        self.bn1 = resnet.bn1
+        self.relu = resnet.relu
+        self.maxpool = resnet.maxpool
+        self.layer1 = resnet.layer1
+        self.layer2 = resnet.layer2
+        self.layer3 = resnet.layer3
+        self.layer4 = resnet.layer4
 
         # TODO Task 1.2: Add score layer
         # 1. Create 1x1 convolution: nn.Conv2d(2048, n_classes, kernel_size=1)
-        self.conv1x1 = nn.Conv2d(2048, n_classes, kernel_size=1)
+        self.score = nn.Conv2d(2048, n_classes, kernel_size=1)
 
         # TODO Task 1.3: Add upsampling layer
         # 1. Create transposed convolution for 32x upsampling
         # 2. Use nn.ConvTranspose2d(n_classes, n_classes, kernel_size=64, stride=32, bias=False)
-        self.upsample32x = nn.ConvTranspose2d(
-            n_classes, n_classes, kernel_size=64, stride=32, bias=False
-        )
+        self.upsample = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=64, stride=32, bias=False) 
+        # with kernel_size = stride, kernels don't overlap, may create artifacts and blocky outputs
+        # with kernel_size > stride, kernels overlap, smoother interpolation
+        # kernel_size = stride * 2 is a typical choice for upsampling
 
         if kaiming_weight_init:
             # Initialize the score conv (kaiming) and upsample to bilinear init
@@ -93,108 +99,166 @@ class FCN32s(nn.Module):
     def forward(self, x):
         # TODO Task 1.4: Implement forward pass
         # 1. Pass through conv1, bn1, relu, maxpool
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.maxpool(x)
         # 2. Pass through layer1, layer2, layer3, layer4
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
         # 3. Apply score layer (1x1 conv)
+        x = self.score(x)
         # 4. Apply 32x upsampling
+        x = self.upsample(x)
         # 5. Return output
-
-        x = self.backbone(x)
-        x = self.conv1x1(x)
-        x = self.upsample32x(x)
         return x
-
-
+    
 class FCN16s(nn.Module):
     """FCN with one skip connection from pool4"""
-
+    
     def __init__(self, n_classes=21):
         super().__init__()
-
+        
         # TODO Task 1.1: Load pretrained ResNet50 and extract layers
         # (Same as FCN32s)
-
+        resnet = models.resnet50(models.ResNet50_Weights)
+        self.conv1 = resnet.conv1
+        self.bn1 = resnet.bn1
+        self.relu = resnet.relu
+        self.maxpool = resnet.maxpool
+        self.layer1 = resnet.layer1
+        self.layer2 = resnet.layer2
+        self.layer3 = resnet.layer3
+        self.layer4 = resnet.layer4
+        
         # TODO Task 1.2: Add score layers
         # 1. score_pool4: nn.Conv2d(1024, n_classes, 1) for layer3 output
         # 2. score_fr: nn.Conv2d(2048, n_classes, 1) for layer4 output
+        self.score_pool4 = nn.Conv2d(1024, n_classes, kernel_size=1)
+        self.score_fr = nn.Conv2d(2048, n_classes, kernel_size=1)
 
         # TODO Task 1.3: Add upsampling layers
         # 1. upscore2: 2x upsampling with stride=2
         # 2. upscore16: 16x upsampling with stride=16
+        self.upscore2 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
+        self.upscore16 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=32, stride=16, bias=False)
 
-        pass
-
+        
     def forward(self, x):
         # TODO Task 1.4: Implement forward pass with one skip connection
         # 1. Pass through initial layers until layer3 (save as pool4)
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        pool4 = self.layer3(x)
         # 2. Continue to layer4
+        layer4 = self.layer4(pool4)
         # 3. Apply score_fr to layer4 output
+        score_fr = self.score_fr(layer4)
         # 4. Apply score_pool4 to pool4
+        score_pool4 = self.score_pool4(pool4)
         # 5. Upsample score_fr by 2x (use upscore2)
+        upscore2 = self.upscore2(score_fr)
         # 6. Add upsampled score_fr + score_pool4 (element-wise addition)
+        fuse_pool4 = upscore2 + score_pool4
         # 7. Upsample fused result by 16x
+        upscore16 = self.upscore16(fuse_pool4)
         # 8. Return output
 
-        pass
+        return upscore16
 
 
 class FCN8s(nn.Module):
     """Fully Convolutional Network with two skip connections"""
-
+    
     def __init__(self, n_classes=21):
         super().__init__()
-
+        
         # TODO Task 1.1: Load pretrained ResNet50 and extract layers
         # 1. Load models.resnet50(pretrained=True)
+        resnet = models.resnet50(models.ResNet50_Weights)
         # 2. Extract conv1, bn1, relu, maxpool
+        self.conv1 = resnet.conv1
+        self.bn1 = resnet.bn1
+        self.relu = resnet.relu
+        self.maxpool = resnet.maxpool
         # 3. Extract layer1 (stride 4)
+        self.layer1 = resnet.layer1
         # 4. Extract layer2 (stride 8, will be pool3)
+        self.layer2 = resnet.layer2
         # 5. Extract layer3 (stride 16, will be pool4)
+        self.layer3 = resnet.layer3
         # 6. Extract layer4 (stride 32)
-
+        self.layer4 = resnet.layer4
+        
         # TODO Task 1.2: Add score layers (1x1 convolutions)
         # 1. score_pool3: nn.Conv2d(512, n_classes, 1) - layer2 outputs 512 channels
+        self.score_pool3 = nn.Conv2d(512, n_classes, kernel_size=1)
         # 2. score_pool4: nn.Conv2d(1024, n_classes, 1) - layer3 outputs 1024 channels
+        self.score_pool4 = nn.Conv2d(1024, n_classes, kernel_size=1)
         # 3. score_fr: nn.Conv2d(2048, n_classes, 1) - layer4 outputs 2048 channels
+        self.score_fr = nn.Conv2d(2048, n_classes, kernel_size=1)
 
         # TODO Task 1.3: Add upsampling layers
-        # 1. upscore2: nn.ConvTranspose2d for 2x upsampling (32 -> 16)
-        # 2. upscore_pool4: nn.ConvTranspose2d for 2x upsampling (16 -> 8)
-        # 3. upscore8: nn.ConvTranspose2d for 8x upsampling (8 -> 1)
         # All should have: (n_classes, n_classes, kernel_size=4 or 16, stride=2 or 8, bias=False)
-
-        pass
-
+        # 1. upscore2: nn.ConvTranspose2d for 2x upsampling (32 -> 16)
+        self.upscore2 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
+        # 2. upscore_pool4: nn.ConvTranspose2d for 2x upsampling (16 -> 8)
+        self.upscore_pool4 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
+        # 3. upscore8: nn.ConvTranspose2d for 8x upsampling (8 -> 1)
+        self.upscore8 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=16, stride=8, bias=False)
+        
+        
     def forward(self, x):
         # TODO Task 1.4: Implement forward pass with progressive skip fusion
         # ENCODER PATH:
         # 1. x = relu(bn1(conv1(x)))
+        x = self.relu(self.bn1(self.conv1(x)))
         # 2. x = maxpool(x)
+        x = self.maxpool(x)
         # 3. x = layer1(x)
+        x = self.layer1(x)
         # 4. pool3 = layer2(x) - Save for skip connection
+        pool3 = self.layer2(x)
         # 5. pool4 = layer3(pool3) - Save for skip connection
+        pool4 = self.layer3(pool3)
         # 6. x = layer4(pool4)
-
+        x = self.layer4(pool4)
+        
         # SCORE LAYERS:
         # 7. score_fr = score_fr(x)
+        score_fr = self.score_fr(x)
         # 8. score_pool4 = score_pool4(pool4)
+        score_pool4 = self.score_pool4(pool4)
         # 9. score_pool3 = score_pool3(pool3)
-
+        score_pool3 = self.score_pool3(pool3)
+        
         # PROGRESSIVE UPSAMPLING WITH SKIP CONNECTIONS:
         # First skip (pool4 at stride 16):
         # 10. upscore2 = upscore2(score_fr) - Upsample 32 -> 16
+        upscore2 = self.upscore2(score_fr)
         # 11. If shapes don't match, use F.interpolate to resize
+        if upscore2.shape[2:] != score_pool4.shape[2:]:
+            upscore2 = F.interpolate(upscore2, size=score_pool4.shape[2:], mode='bilinear', align_corners=False)
         # 12. fuse_pool4 = upscore2 + score_pool4 - Element-wise addition
+        fuse_pool4 = upscore2 + score_pool4
 
         # Second skip (pool3 at stride 8):
         # 13. upscore_pool4 = upscore_pool4(fuse_pool4) - Upsample 16 -> 8
+        upscore_pool4 = self.upscore_pool4(fuse_pool4)
         # 14. If shapes don't match, use F.interpolate to resize
+        if upscore_pool4.shape[2:] != score_pool3.shape[2:]:
+            upscore_pool4 = F.interpolate(upscore_pool4, size=score_pool3.shape[2:], mode='bilinear', align_corners=False)
         # 15. fuse_pool3 = upscore_pool4 + score_pool3 - Element-wise addition
+        fuse_pool3 = upscore_pool4 + score_pool3
 
         # Final upsampling:
         # 16. out = upscore8(fuse_pool3) - Upsample 8 -> 1 (original resolution)
+        out = self.upscore8(fuse_pool3)
         # 17. Return out
 
-        pass
+        return out
 
 
 # ================== Part 2: DeepLabV3+ Architecture ==================
