@@ -78,7 +78,9 @@ class FCN32s(nn.Module):
         # TODO Task 1.3: Add upsampling layer
         # 1. Create transposed convolution for 32x upsampling
         # 2. Use nn.ConvTranspose2d(n_classes, n_classes, kernel_size=64, stride=32, bias=False)
-        self.upsample = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=64, stride=32, bias=False) 
+        self.upsample = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=64, stride=32, bias=False
+        )
         # with kernel_size = stride, kernels don't overlap, may create artifacts and blocky outputs
         # with kernel_size > stride, kernels overlap, smoother interpolation
         # kernel_size = stride * 2 is a typical choice for upsampling
@@ -112,13 +114,14 @@ class FCN32s(nn.Module):
         x = self.upsample(x)
         # 5. Return output
         return x
-    
+
+
 class FCN16s(nn.Module):
     """FCN with one skip connection from pool4"""
-    
+
     def __init__(self, n_classes=21):
         super().__init__()
-        
+
         # TODO Task 1.1: Load pretrained ResNet50 and extract layers
         # (Same as FCN32s)
         resnet = models.resnet50(models.ResNet50_Weights)
@@ -130,7 +133,7 @@ class FCN16s(nn.Module):
         self.layer2 = resnet.layer2
         self.layer3 = resnet.layer3
         self.layer4 = resnet.layer4
-        
+
         # TODO Task 1.2: Add score layers
         # 1. score_pool4: nn.Conv2d(1024, n_classes, 1) for layer3 output
         # 2. score_fr: nn.Conv2d(2048, n_classes, 1) for layer4 output
@@ -140,10 +143,13 @@ class FCN16s(nn.Module):
         # TODO Task 1.3: Add upsampling layers
         # 1. upscore2: 2x upsampling with stride=2
         # 2. upscore16: 16x upsampling with stride=16
-        self.upscore2 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
-        self.upscore16 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=32, stride=16, bias=False)
+        self.upscore2 = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=4, stride=2, bias=False
+        )
+        self.upscore16 = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=32, stride=16, bias=False
+        )
 
-        
     def forward(self, x):
         # TODO Task 1.4: Implement forward pass with one skip connection
         # 1. Pass through initial layers until layer3 (save as pool4)
@@ -171,10 +177,10 @@ class FCN16s(nn.Module):
 
 class FCN8s(nn.Module):
     """Fully Convolutional Network with two skip connections"""
-    
+
     def __init__(self, n_classes=21):
         super().__init__()
-        
+
         # TODO Task 1.1: Load pretrained ResNet50 and extract layers
         # 1. Load models.resnet50(pretrained=True)
         resnet = models.resnet50(models.ResNet50_Weights)
@@ -191,7 +197,7 @@ class FCN8s(nn.Module):
         self.layer3 = resnet.layer3
         # 6. Extract layer4 (stride 32)
         self.layer4 = resnet.layer4
-        
+
         # TODO Task 1.2: Add score layers (1x1 convolutions)
         # 1. score_pool3: nn.Conv2d(512, n_classes, 1) - layer2 outputs 512 channels
         self.score_pool3 = nn.Conv2d(512, n_classes, kernel_size=1)
@@ -203,13 +209,18 @@ class FCN8s(nn.Module):
         # TODO Task 1.3: Add upsampling layers
         # All should have: (n_classes, n_classes, kernel_size=4 or 16, stride=2 or 8, bias=False)
         # 1. upscore2: nn.ConvTranspose2d for 2x upsampling (32 -> 16)
-        self.upscore2 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
+        self.upscore2 = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=4, stride=2, bias=False
+        )
         # 2. upscore_pool4: nn.ConvTranspose2d for 2x upsampling (16 -> 8)
-        self.upscore_pool4 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=4, stride=2, bias=False)
+        self.upscore_pool4 = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=4, stride=2, bias=False
+        )
         # 3. upscore8: nn.ConvTranspose2d for 8x upsampling (8 -> 1)
-        self.upscore8 = nn.ConvTranspose2d(n_classes, n_classes, kernel_size=16, stride=8, bias=False)
-        
-        
+        self.upscore8 = nn.ConvTranspose2d(
+            n_classes, n_classes, kernel_size=16, stride=8, bias=False
+        )
+
     def forward(self, x):
         # TODO Task 1.4: Implement forward pass with progressive skip fusion
         # ENCODER PATH:
@@ -225,7 +236,7 @@ class FCN8s(nn.Module):
         pool4 = self.layer3(pool3)
         # 6. x = layer4(pool4)
         x = self.layer4(pool4)
-        
+
         # SCORE LAYERS:
         # 7. score_fr = score_fr(x)
         score_fr = self.score_fr(x)
@@ -233,14 +244,19 @@ class FCN8s(nn.Module):
         score_pool4 = self.score_pool4(pool4)
         # 9. score_pool3 = score_pool3(pool3)
         score_pool3 = self.score_pool3(pool3)
-        
+
         # PROGRESSIVE UPSAMPLING WITH SKIP CONNECTIONS:
         # First skip (pool4 at stride 16):
         # 10. upscore2 = upscore2(score_fr) - Upsample 32 -> 16
         upscore2 = self.upscore2(score_fr)
         # 11. If shapes don't match, use F.interpolate to resize
         if upscore2.shape[2:] != score_pool4.shape[2:]:
-            upscore2 = F.interpolate(upscore2, size=score_pool4.shape[2:], mode='bilinear', align_corners=False)
+            upscore2 = F.interpolate(
+                upscore2,
+                size=score_pool4.shape[2:],
+                mode="bilinear",
+                align_corners=False,
+            )
         # 12. fuse_pool4 = upscore2 + score_pool4 - Element-wise addition
         fuse_pool4 = upscore2 + score_pool4
 
@@ -249,7 +265,12 @@ class FCN8s(nn.Module):
         upscore_pool4 = self.upscore_pool4(fuse_pool4)
         # 14. If shapes don't match, use F.interpolate to resize
         if upscore_pool4.shape[2:] != score_pool3.shape[2:]:
-            upscore_pool4 = F.interpolate(upscore_pool4, size=score_pool3.shape[2:], mode='bilinear', align_corners=False)
+            upscore_pool4 = F.interpolate(
+                upscore_pool4,
+                size=score_pool3.shape[2:],
+                mode="bilinear",
+                align_corners=False,
+            )
         # 15. fuse_pool3 = upscore_pool4 + score_pool3 - Element-wise addition
         fuse_pool3 = upscore_pool4 + score_pool3
 
