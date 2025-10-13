@@ -456,34 +456,33 @@ def visualize_predictions(model, dataloader, device, num_samples=4):
     # 2. Generate predictions
     # 3. Create subplot showing: input, ground truth, prediction
 
-    for i in range(num_samples):
-        images, masks = next(iter(dataloader))
-        images, masks = images.to(device), masks.to(device)
+    images, masks = next(iter(dataloader))
+    images, masks = images.to(device), masks.to(device)
 
-        with torch.no_grad():
-            outputs = model(images)
-            preds = torch.sigmoid(outputs) > 0.5
+    with torch.no_grad():
+        outputs = model(images)
+        preds = torch.sigmoid(outputs) > 0.5
 
-        # Plotting
-        plt.figure(figsize=(12, 4))
-        for j in range(min(4, images.size(0))):
-            plt.subplot(3, 4, j + 1)
-            plt.imshow(images[j].cpu().permute(1, 2, 0) * 0.5 + 0.5)
-            plt.title("Input Image")
-            plt.axis("off")
+    # Plotting
+    plt.figure(figsize=(12, 4))
+    for j in range(min(4, images.size(0))):
+        plt.subplot(3, 4, j + 1)
+        plt.imshow(images[j].cpu().permute(1, 2, 0) * 0.5 + 0.5)
+        plt.title("Input Image")
+        plt.axis("off")
 
-            plt.subplot(3, 4, j + 5)
-            plt.imshow(masks[j].cpu().squeeze(), cmap="gray")
-            plt.title("Ground Truth")
-            plt.axis("off")
+        plt.subplot(3, 4, j + 5)
+        plt.imshow(masks[j].cpu().squeeze(), cmap="gray")
+        plt.title("Ground Truth")
+        plt.axis("off")
 
-            plt.subplot(3, 4, j + 9)
-            plt.imshow(preds[j].cpu().squeeze(), cmap="gray")
-            plt.title("Prediction")
-            plt.axis("off")
+        plt.subplot(3, 4, j + 9)
+        plt.imshow(preds[j].cpu().squeeze(), cmap="gray")
+        plt.title("Prediction")
+        plt.axis("off")
 
-        plt.tight_layout()
-        plt.show()
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_training_curves(train_losses, val_losses, train_ious, val_ious):
@@ -573,14 +572,21 @@ def main():
 
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
-    if os.path.exists("best_unet_model.pth"):
-        model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"])
-        model.load_state_dict(torch.load("best_unet_model.pth"))
-        if os.path.exists("train_losses.npy"):
-            train_losses = np.load("train_losses.npy")
-            val_losses = np.load("val_losses.npy")
-            train_ious = np.load("train_ious.npy")
-            val_ious = np.load("val_ious.npy")
+    if os.path.exists(os.path.join(currentDirectory, "best_unet_model.pth")):
+        model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"]).to(
+            device
+        )
+        model.load_state_dict(
+            torch.load(
+                os.path.join(currentDirectory, "best_unet_model.pth"),
+                map_location=device,
+            )
+        )
+        if os.path.exists(os.path.join(currentDirectory, "train_losses.npy")):
+            train_losses = np.load(os.path.join(currentDirectory, "train_losses.npy"))
+            val_losses = np.load(os.path.join(currentDirectory, "val_losses.npy"))
+            train_ious = np.load(os.path.join(currentDirectory, "train_ious.npy"))
+            val_ious = np.load(os.path.join(currentDirectory, "val_ious.npy"))
 
     else:
         model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"]).to(
@@ -624,12 +630,17 @@ def main():
             # Save best model
             if val_iou > best_iou:
                 best_iou = val_iou
-                torch.save(model.state_dict(), "best_unet_model.pth")
+                torch.save(
+                    model.state_dict(),
+                    os.path.join(currentDirectory, "best_unet_model.pth"),
+                )
                 print("Best model saved!")
-        np.save("train_losses.npy", np.array(train_losses))
-        np.save("val_losses.npy", np.array(val_losses))
-        np.save("train_ious.npy", np.array(train_ious))
-        np.save("val_ious.npy", np.array(val_ious))
+        np.save(
+            os.path.join(currentDirectory, "train_losses.npy"), np.array(train_losses)
+        )
+        np.save(os.path.join(currentDirectory, "val_losses.npy"), np.array(val_losses))
+        np.save(os.path.join(currentDirectory, "train_ious.npy"), np.array(train_ious))
+        np.save(os.path.join(currentDirectory, "val_ious.npy"), np.array(val_ious))
 
     # Plot training curves
     plot_training_curves(train_losses, val_losses, train_ious, val_ious)
