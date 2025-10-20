@@ -482,7 +482,6 @@ def visualize_predictions(model, dataloader, device, num_samples=4):
         plt.axis("off")
 
     plt.tight_layout()
-    plt.show()
 
 
 def plot_training_curves(train_losses, val_losses, train_ious, val_ious):
@@ -508,7 +507,6 @@ def plot_training_curves(train_losses, val_losses, train_ious, val_ious):
     plt.legend()
 
     plt.tight_layout()
-    plt.show()
 
 
 def get_dataloaders(config: dict):
@@ -558,14 +556,20 @@ def get_dataloaders(config: dict):
 # ================== Main Training Script ==================
 
 
-def main():
+def main(
+    batch_size: int = 16,
+    learning_rate: float = 0.001,
+    epochs: int = 50,
+    image_size: int = 128,
+    skip_mode: str = "concat",
+):
     # Hyperparameters
     config = {
-        "batch_size": 16,
-        "learning_rate": 0.001,
-        "epochs": 50,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "epochs": epochs,
         "image_size": 128,
-        "skip_mode": "concat",  # Try: 'concat', 'add', 'attention'
+        "skip_mode": skip_mode,  # Try: 'concat', 'add', 'attention'
     }
     # Get data loaders
     trainLoader, valLoader = get_dataloaders(config)
@@ -619,6 +623,7 @@ def main():
         best_iou = 0.0
 
         print("Starting training...")
+        start_time = time.time()
         for epoch in range(config["epochs"]):
             # Train and validate
             train_loss, train_iou = train_epoch(
@@ -649,88 +654,7 @@ def main():
                     os.path.join(currentDirectory, "best_unet_model.pth"),
                 )
                 print("Best model saved!")
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
-            np.array(val_losses),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
-            np.array(train_ious),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
-            np.array(val_ious),
-        )
 
-    # Plot training curves
-    plot_training_curves(train_losses, val_losses, train_ious, val_ious)
-
-    # Visualize final predictions
-    visualize_predictions(model, valLoader, device)
-
-    print("Training complete!")
-
-
-# ================== Analysis Functions ==================
-
-
-def analyze_skip_connections():
-    """Compare different skip connection strategies"""
-    # Task 2.4: Implement comparison
-    # 1. Train models with different skip modes
-    # 2. Compare gradient flow
-    # 3. Compare memory usage
-    # 4. Compare final performance
-
-    results = {}
-
-    config = {
-        "batch_size": 16,
-        "learning_rate": 0.001,
-        "epochs": 50,
-        "image_size": 128,
-    }
-
-    trainLoader, valLoader = get_dataloaders(config)
-
-    criterion = DiceLoss()
-
-    # Run experiments for each mode
-    for mode in ["concat", "add", "attention"]:
-        print("*" * 50)
-        print(f"Training with skip mode: {mode}")
-        print("*" * 50)
-        model = UNet(in_channels=3, out_channels=1, skipMode=mode).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
-        # Initialize metrics storage
-        train_losses = []
-        val_losses = []
-        train_ious = []
-        val_ious = []
-        training_time = 0
-
-        start_time = time.time()
-
-        # Train model
-        for epoch in range(config["epochs"]):
-            train_loss, train_iou = train_epoch(
-                model, trainLoader, optimizer, criterion, device
-            )
-            val_loss, val_iou = validate(model, valLoader, criterion, device)
-
-            train_losses.append(train_loss)
-            val_losses.append(val_loss)
-            train_ious.append(train_iou)
-            val_ious.append(val_iou)
-
-            print(
-                f"Epoch {epoch+1} "
-                f"Train Loss: {train_loss:.4f}, Train IoU: {train_iou:.4f}, "
-                f"Val Loss: {val_loss:.4f}, Val IoU: {val_iou:.4f}"
-            )
         training_time = time.time() - start_time
         print(f"Training time: {training_time:.2f} seconds")
 
@@ -762,16 +686,64 @@ def analyze_skip_connections():
         else:
             memory_usage = 0.0
 
-        # Collect metrics
-        results[mode] = {
-            "train_losses": train_losses,
-            "val_losses": val_losses,
-            "train_ious": train_ious,
-            "val_ious": val_ious,
-            "avg_gradient": avg_gradient,
-            "memory_usage": memory_usage,
-            "training_time": training_time,
-        }
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
+        )
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
+            np.array(val_losses),
+        )
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
+            np.array(train_ious),
+        )
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
+            np.array(val_ious),
+        )
+
+    # Plot training curves
+    plot_training_curves(train_losses, val_losses, train_ious, val_ious)
+
+    # Visualize final predictions
+    visualize_predictions(model, valLoader, device)
+
+    print("Training complete!")
+
+    return {
+        "train_losses": train_losses,
+        "val_losses": val_losses,
+        "train_ious": train_ious,
+        "val_ious": val_ious,
+        "training_time": training_time,
+        "avg_gradient": avg_gradient,
+        "memory_usage": memory_usage,
+    }
+
+
+# ================== Analysis Functions ==================
+
+
+def analyze_skip_connections():
+    """Compare different skip connection strategies"""
+    # Task 2.4: Implement comparison
+    # 1. Train models with different skip modes
+    # 2. Compare gradient flow
+    # 3. Compare memory usage
+    # 4. Compare final performance
+
+    results = {}
+
+    config = {
+        "batch_size": 16,
+        "learning_rate": 0.001,
+        "epochs": 50,
+        "image_size": 128,
+    }
+
+    # Run experiments for each mode
+    for mode in ["concat", "add", "attention"]:
+        results[mode] = main(mode, **config)
 
     # Create comparison table/plot
     table = PrettyTable()
@@ -818,3 +790,5 @@ if __name__ == "__main__":
     # Run analysis (optional)
     analyze_skip_connections()
     # ablation_study()
+
+    plt.show()
