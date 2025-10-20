@@ -568,7 +568,7 @@ def main(
         "batch_size": batch_size,
         "learning_rate": learning_rate,
         "epochs": epochs,
-        "image_size": 128,
+        "image_size": image_size,
         "skip_mode": skip_mode,  # Try: 'concat', 'add', 'attention'
     }
     # Get data loaders
@@ -743,7 +743,7 @@ def analyze_skip_connections():
 
     # Run experiments for each mode
     for mode in ["concat", "add", "attention"]:
-        results[mode] = main(mode, **config)
+        results[mode] = main(skip_mode=mode, **config)
 
     # Create comparison table/plot
     table = PrettyTable()
