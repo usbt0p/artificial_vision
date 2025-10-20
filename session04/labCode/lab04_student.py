@@ -574,6 +574,8 @@ def main(
     # Get data loaders
     trainLoader, valLoader = get_dataloaders(config)
 
+    os.makedirs(os.path.join(currentDirectory, config["skip_mode"]), exist_ok=True)
+
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
     if os.path.exists(
@@ -651,7 +653,9 @@ def main(
                 best_iou = val_iou
                 torch.save(
                     model.state_dict(),
-                    os.path.join(currentDirectory, "best_unet_model.pth"),
+                    os.path.join(
+                        currentDirectory, config["skip_mode"], "best_unet_model.pth"
+                    ),
                 )
                 print("Best model saved!")
 
