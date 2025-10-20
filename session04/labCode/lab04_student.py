@@ -572,21 +572,35 @@ def main():
 
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
-    if os.path.exists(os.path.join(currentDirectory, "best_unet_model.pth")):
+    if os.path.exists(
+        os.path.join(currentDirectory, config["skip_mode"], "best_unet_model.pth")
+    ):
         model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"]).to(
             device
         )
         model.load_state_dict(
             torch.load(
-                os.path.join(currentDirectory, "best_unet_model.pth"),
+                os.path.join(
+                    currentDirectory, config["skip_mode"], "best_unet_model.pth"
+                ),
                 map_location=device,
             )
         )
-        if os.path.exists(os.path.join(currentDirectory, "train_losses.npy")):
-            train_losses = np.load(os.path.join(currentDirectory, "train_losses.npy"))
-            val_losses = np.load(os.path.join(currentDirectory, "val_losses.npy"))
-            train_ious = np.load(os.path.join(currentDirectory, "train_ious.npy"))
-            val_ious = np.load(os.path.join(currentDirectory, "val_ious.npy"))
+        if os.path.exists(
+            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy")
+        ):
+            train_losses = np.load(
+                os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy")
+            )
+            val_losses = np.load(
+                os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy")
+            )
+            train_ious = np.load(
+                os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy")
+            )
+            val_ious = np.load(
+                os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy")
+            )
 
     else:
         model = UNet(in_channels=3, out_channels=1, skipMode=config["skip_mode"]).to(
@@ -636,11 +650,20 @@ def main():
                 )
                 print("Best model saved!")
         np.save(
-            os.path.join(currentDirectory, "train_losses.npy"), np.array(train_losses)
+            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
         )
-        np.save(os.path.join(currentDirectory, "val_losses.npy"), np.array(val_losses))
-        np.save(os.path.join(currentDirectory, "train_ious.npy"), np.array(train_ious))
-        np.save(os.path.join(currentDirectory, "val_ious.npy"), np.array(val_ious))
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
+            np.array(val_losses),
+        )
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
+            np.array(train_ious),
+        )
+        np.save(
+            os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
+            np.array(val_ious),
+        )
 
     # Plot training curves
     plot_training_curves(train_losses, val_losses, train_ious, val_ious)
@@ -667,7 +690,7 @@ def analyze_skip_connections():
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
-        "epochs": 20,
+        "epochs": 50,
         "image_size": 128,
     }
 
@@ -790,8 +813,8 @@ def ablation_study():
 
 if __name__ == "__main__":
     # Run main training
-    main()
+    # main()
 
     # Run analysis (optional)
-    # analyze_skip_connections()
+    analyze_skip_connections()
     # ablation_study()
