@@ -231,6 +231,9 @@ def main(
 
     os.makedirs(os.path.join(currentDirectory, config["skip_mode"]), exist_ok=True)
 
+    # Setup loss
+    criterion = losses.DiceLoss()
+
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
     if os.path.exists(
@@ -263,14 +266,15 @@ def main(
                 os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy")
             )
 
+        training_time = 0
+
     else:
         model = UNet.UNet(
             in_channels=3, out_channels=1, skipMode=config["skip_mode"]
         ).to(device)
 
-        # Setup optimizer and loss
+        # Setup optimizer
         optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
-        criterion = losses.DiceLoss()
 
         # Training loop
         train_losses = []
@@ -317,34 +321,6 @@ def main(
         training_time = time.time() - start_time
         print(f"Training time: {training_time:.2f} seconds")
 
-        # Collect gradient flow and memory usage
-        gradient_norms = {}
-        model.train()
-        images, masks = next(iter(trainLoader))
-        images, masks = images.to(device), masks.to(device)
-
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, masks)
-        loss.backward()
-
-        # Collect gradient norms
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                gradient_norms[name] = param.grad.norm().item()
-
-        avg_gradient = np.mean(list(gradient_norms.values()))
-
-        # Memory usage
-        if torch.cuda.is_available():
-            torch.cuda.reset_peak_memory_stats()
-            model.eval()
-            with torch.no_grad():
-                _ = model(images)
-            memory_usage = torch.cuda.max_memory_allocated() / 1024**2  # MB
-        else:
-            memory_usage = 0.0
-
         np.save(
             os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
             np.array(train_losses),
@@ -361,6 +337,36 @@ def main(
             os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
             np.array(val_ious),
         )
+
+        # Clear optimizer gradients
+        optimizer.zero_grad()
+
+    # Collect gradient flow and memory usage
+    gradient_norms = {}
+    model.train()
+    images, masks = next(iter(trainLoader))
+    images, masks = images.to(device), masks.to(device)
+
+    outputs = model(images)
+    loss = criterion(outputs, masks)
+    loss.backward()
+
+    # Collect gradient norms
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            gradient_norms[name] = param.grad.norm().item()
+
+    avg_gradient = np.mean(list(gradient_norms.values()))
+
+    # Memory usage
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+        model.eval()
+        with torch.no_grad():
+            _ = model(images)
+        memory_usage = torch.cuda.max_memory_allocated() / 1024**2  # MB
+    else:
+        memory_usage = 0.0
 
     # Plot training curves
     plot_training_curves(train_losses, val_losses, train_ious, val_ious)
@@ -397,7 +403,7 @@ def analyze_skip_connections():
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
-        "epochs": 1,
+        "epochs": 50,
         "image_size": 128,
     }
 
