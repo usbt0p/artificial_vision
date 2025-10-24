@@ -1,64 +1,81 @@
-# Lab 6: Object Detection - Setup and Instructions
+# Lab 6: Object Detection - YOLO and FCOS
 
-## Overview
+Complete implementation of YOLO and FCOS object detectors trained on COCO dataset.
 
-This lab implements two modern object detection architectures:
-- **YOLO**: Anchor-based, grid-based detection
-- **FCOS**: Anchor-free, per-pixel detection with FPN
+## 📁 Project Structure
 
-Both models are trained and evaluated on the COCO dataset.
-
-## Prerequisites
-
-### Hardware Requirements
-- **Minimum**: 8GB RAM, 6GB VRAM GPU (or CPU with patience)
-- **Recommended**: 16GB RAM, 11GB+ VRAM GPU
-- **Disk Space**: ~25GB for COCO dataset
-
-### Software Requirements
-- Python 3.8+
-- CUDA 11.0+ (for GPU support)
-
-## Installation
-
-### 1. Create Virtual Environment
-
-```bash
-# Create environment
-python -m venv venv_lab6
-
-# Activate (Linux/Mac)
-source venv_lab6/bin/activate
-
-# Activate (Windows)
-venv_lab6\Scripts\activate
+```
+lab6_detection/
+├── config.py                     # Configuration parameters
+├── train.py                      # Training script
+├── evaluate.py                   # Evaluation script
+├── README.md                     # This file
+│
+├── models/
+│   ├── __init__.py
+│   ├── backbone.py              # ResNet backbone
+│   ├── fpn.py                   # Feature Pyramid Network
+│   ├── yolo.py                  # YOLO detector
+│   └── fcos.py                  # FCOS detector
+│
+├── datasets/
+│   ├── __init__.py
+│   ├── coco_dataset.py          # COCO data loader
+│   └── transforms.py            # Data augmentation
+│
+├── losses/
+│   ├── __init__.py
+│   ├── yolo_loss.py             # YOLO loss function
+│   └── focal_loss.py            # Focal loss for FCOS
+│
+├── utils/
+│   ├── __init__.py
+│   ├── nms.py                   # NMS and box utilities
+│   ├── metrics.py               # Evaluation metrics
+│   └── visualization.py         # Plotting utilities
+│
+├── data/
+│   └── coco/                    # COCO dataset (download required)
+│       ├── train2017/
+│       ├── val2017/
+│       └── annotations/
+│
+├── checkpoints/                 # Saved model checkpoints
+├── logs/                        # TensorBoard logs
+└── outputs/                     # Predictions and visualizations
 ```
 
-### 2. Install Dependencies
+## 🚀 Quick Start
+
+### 1. Installation
 
 ```bash
-# Install PyTorch (CPU version)
-pip install torch torchvision torchaudio
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
 
-# Install PyTorch (GPU version - CUDA 11.8)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-# Install other dependencies
-pip install pycocotools tensorboard matplotlib opencv-python tqdm numpy scipy
+# Install dependencies
+pip install torch torchvision
+pip install pycocotools tensorboard matplotlib opencv-python tqdm
 ```
 
-### 3. Download COCO Dataset
+### 2. Download COCO Dataset
 
 ```bash
 # Create data directory
 mkdir -p data/coco
 cd data/coco
 
-# Download images (18GB train, 1GB val)
+# Download images (choose one)
+# Full dataset (~25GB)
 wget http://images.cocodataset.org/zips/train2017.zip
 wget http://images.cocodataset.org/zips/val2017.zip
 
-# Download annotations (241MB)
+# Or just validation for testing (~1GB)
+wget http://images.cocodataset.org/zips/val2017.zip
+
+# Download annotations
 wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 
 # Extract
@@ -66,434 +83,416 @@ unzip train2017.zip
 unzip val2017.zip
 unzip annotations_trainval2017.zip
 
-# Clean up
-rm *.zip
-
 cd ../..
 ```
 
-**Alternative**: Download subset for faster testing:
+### 3. Train Model
+
+**Train YOLO:**
 ```bash
-# Only download validation set (~1GB)
-wget http://images.cocodataset.org/zips/val2017.zip
-wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
+python train.py --model yolo --batch-size 8 --epochs 20
 ```
 
-## Project Structure
-
-```
-lab6_detection/
-├── README.md                    # This file
-├── lab6_complete.py             # Complete solution (for reference)
-├── lab6_template.py             # Student template (your work goes here)
-├── utils/
-│   ├── visualization.py         # Visualization utilities
-│   └── metrics.py               # Additional metrics
-├── checkpoints/                 # Saved models
-├── logs/                        # TensorBoard logs
-└── data/
-    └── coco/
-        ├── train2017/
-        ├── val2017/
-        └── annotations/
-            ├── instances_train2017.json
-            └── instances_val2017.json
+**Train FCOS:**
+```bash
+python train.py --model fcos --batch-size 4 --epochs 20
 ```
 
-## Implementation Roadmap
-
-### Phase 1: Data Pipeline (2-3 hours)
-**File**: `lab6_template.py`, sections 1.1-1.8
-
-1. ✅ Implement `COCODetectionDataset.__init__()`
-2. ✅ Implement `COCODetectionDataset.__getitem__()`
-3. ✅ Implement `collate_fn()`
-4. 🧪 **Test**: Run `test_dataset()`
-
-**Expected output**:
-```
-Testing dataset...
-Dataset size: 118287
-Image shape: torch.Size([3, 448, 448])
-Number of boxes: 7
-✓ Dataset test passed!
+**Resume training:**
+```bash
+python train.py --model fcos --resume checkpoints/fcos_4bs/checkpoint_epoch_10.pth
 ```
 
-### Phase 2: Utility Functions (1-2 hours)
-**File**: `lab6_template.py`, sections 2.1-2.4
+### 4. Evaluate Model
 
-1. ✅ Implement `compute_iou()`
-2. ✅ Implement `xywh_to_xyxy()` and `xyxy_to_xywh()`
-3. ✅ Implement `nms()`
-4. 🧪 **Test**: Run `test_iou()` and `test_nms()`
-
-**Expected output**:
-```
-Testing IoU...
-✓ IoU test passed!
-Testing NMS...
-✓ NMS test passed!
+```bash
+python evaluate.py \
+    --model fcos \
+    --checkpoint checkpoints/fcos_4bs/best.pth \
+    --visualize \
+    --num-vis 20
 ```
 
-### Phase 3: YOLO Detector (3-4 hours)
-**File**: `lab6_template.py`, sections 3.1-3.5
-
-1. ✅ Implement `YOLODetector.__init__()` and `forward()`
-2. ✅ Implement `YOLOLoss.encode_targets()`
-3. ✅ Implement `YOLOLoss.get_responsible_boxes()`
-4. ✅ Implement `YOLOLoss.forward()`
-5. 🧪 **Test**: Run `test_yolo_model()`
-
-**Expected output**:
-```
-Testing YOLO model...
-✓ YOLO model test passed!
-```
-
-### Phase 4: FCOS Detector (3-4 hours)
-**File**: `lab6_template.py`, sections 4.1-4.11
-
-1. ✅ Implement `FPN.__init__()` and `forward()`
-2. ✅ Implement `FCOSHead.__init__()` and `forward()`
-3. ✅ Implement `FCOSDetector.__init__()` and `forward()`
-4. ✅ Implement `FocalLoss.forward()`
-5. ✅ Implement `FCOSLoss` methods
-6. 🧪 **Test**: Run `test_fcos_model()`
-
-**Expected output**:
-```
-Testing FCOS model...
-✓ FCOS model test passed!
-```
-
-### Phase 5: Training & Evaluation (2-3 hours)
-**File**: `lab6_template.py`, sections 5.1-5.4
-
-1. ✅ Implement `train_one_epoch()`
-2. ✅ Implement `evaluate_model()`
-3. ✅ Implement `decode_yolo_predictions()`
-4. ✅ Implement `decode_fcos_predictions()`
-
-### Phase 6: Main Pipeline (1 hour)
-**File**: `lab6_template.py`, section 6.1
-
-1. ✅ Complete `main()` function
-2. 🚀 **Start training**!
-
-## Training
-
-### Quick Start (YOLO)
-
-```python
-# In lab6_template.py, set:
-model_type = 'yolo'
-config.batch_size = 8
-config.num_epochs = 20
-
-# Run
-python lab6_template.py
-```
-
-### Quick Start (FCOS)
-
-```python
-# In lab6_template.py, set:
-model_type = 'fcos'
-config.batch_size = 4  # FCOS needs more memory
-config.num_epochs = 20
-
-# Run
-python lab6_template.py
-```
-
-### Monitor Training
+### 5. Monitor Training
 
 ```bash
 # Start TensorBoard
-tensorboard --logdir=logs
+tensorboard --logdir logs
 
 # Open browser to http://localhost:6006
 ```
 
-### Expected Training Time
-
-**YOLO (ResNet18 backbone)**:
-- GPU (RTX 3080): ~2 hours for 20 epochs
-- GPU (GTX 1060): ~4 hours for 20 epochs
-- CPU: ~30-40 hours for 20 epochs
-
-**FCOS (ResNet50 backbone)**:
-- GPU (RTX 3080): ~4 hours for 20 epochs
-- GPU (GTX 1060): ~8 hours for 20 epochs
-- CPU: Not recommended
-
-### Tips for Faster Training
-
-1. **Reduce dataset size** (for testing):
-```python
-# In lab6_template.py
-train_dataset.img_ids = train_dataset.img_ids[:1000]  # Use only 1000 images
-```
-
-2. **Reduce batch size** if out of memory:
-```python
-config.batch_size = 2  # Minimum workable
-```
-
-3. **Use gradient accumulation**:
-```python
-accumulation_steps = 4
-for i, batch in enumerate(train_loader):
-    loss = loss / accumulation_steps
-    loss.backward()
-    
-    if (i + 1) % accumulation_steps == 0:
-        optimizer.step()
-        optimizer.zero_grad()
-```
-
-## Evaluation
-
-### Run Evaluation
-
-```python
-from lab6_template import evaluate_model, FCOSDetector
-
-# Load model
-model = FCOSDetector(num_classes=80)
-checkpoint = torch.load('checkpoints/fcos_best.pth')
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
-
-# Evaluate
-metrics = evaluate_model(model, val_loader, val_dataset.coco, device)
-print(f"mAP: {metrics['mAP']:.3f}")
-print(f"AP50: {metrics['AP50']:.3f}")
-print(f"AP75: {metrics['AP75']:.3f}")
-```
-
-### Visualize Predictions
-
-```python
-from utils.visualization import visualize_predictions
-
-# Get predictions
-images, boxes, labels, img_ids = next(iter(val_loader))
-predictions = model(images.to(device))
-detections = decode_fcos_predictions(predictions, ...)
-
-# Visualize
-visualize_predictions(images[0], detections[0], save_path='output.png')
-```
-
-## Expected Results
+## 📊 Expected Results
 
 ### YOLO (ResNet18, 20 epochs)
 - **mAP**: 15-20%
 - **AP50**: 30-35%
-- **AP75**: 10-15%
-- **Inference**: 30-40 FPS (GPU)
+- **Training time**: ~2-4 hours (GPU)
+- **Inference**: 30-40 FPS
 
 ### FCOS (ResNet50, 20 epochs)
 - **mAP**: 25-30%
 - **AP50**: 42-48%
 - **AP75**: 20-25%
-- **APS**: 10-15% (small objects)
-- **APM**: 25-30% (medium objects)
-- **APL**: 35-40% (large objects)
-- **Inference**: 15-20 FPS (GPU)
+- **APS**: 10-15%
+- **APM**: 25-30%
+- **APL**: 35-40%
+- **Training time**: ~4-8 hours (GPU)
+- **Inference**: 15-20 FPS
 
-### Baseline Comparison
-- **State-of-the-art YOLO (YOLOv8)**: 50-55% mAP
-- **State-of-the-art FCOS**: 40-45% mAP
+## 🔧 Configuration
 
-Our implementations achieve lower performance due to:
-- Limited training time (20 epochs vs 300+)
-- Smaller backbones (ResNet18/50 vs ResNet101/CSPDarknet)
-- Basic augmentation (vs advanced techniques)
-- No tricks (e.g., multi-scale training, test-time augmentation)
+Edit `config.py` to change hyperparameters:
 
-## Troubleshooting
-
-### Issue: CUDA out of memory
-
-**Solution**:
 ```python
-# Reduce batch size
-config.batch_size = 2
+# Model settings
+num_classes = 80
+input_size = 448
+grid_size = 7  # YOLO
 
-# Or use gradient accumulation
-# Or train on CPU (slower)
-config.device = 'cpu'
+# Training settings
+batch_size = 8
+num_epochs = 20
+learning_rate = 1e-4
+
+# Loss weights
+lambda_coord = 5.0  # YOLO coordinate loss
+focal_alpha = 0.25  # FCOS focal loss
+focal_gamma = 2.0
+
+# NMS settings
+nms_threshold = 0.5
+conf_threshold = 0.05
 ```
 
-### Issue: Loss is NaN
+## 📖 Usage Examples
 
-**Possible causes**:
-1. Learning rate too high → Reduce to 1e-5
-2. Gradient explosion → Check gradient clipping
-3. Division by zero → Check IoU and loss computations
+### Training with Custom Settings
 
-**Debug**:
-```python
-# Add checks in loss computation
-torch.autograd.set_detect_anomaly(True)
+```bash
+python train.py \
+    --model fcos \
+    --batch-size 4 \
+    --epochs 30 \
+    --lr 5e-5 \
+    --exp-name fcos_long_training
 ```
 
-### Issue: mAP is 0% or very low (<5%)
+### Evaluation with Different Thresholds
 
-**Possible causes**:
-1. Incorrect target encoding → Check `encode_targets()`
-2. Wrong box format (xywh vs xyxy) → Verify conversions
-3. NMS too aggressive → Increase threshold to 0.7
-4. Confidence threshold too high → Lower to 0.01
-
-**Debug**:
-```python
-# Visualize targets vs predictions
-from utils.visualization import plot_targets_and_predictions
-plot_targets_and_predictions(images[0], targets, predictions)
+```bash
+python evaluate.py \
+    --model fcos \
+    --checkpoint checkpoints/best.pth \
+    --conf-threshold 0.1 \
+    --nms-threshold 0.6 \
+    --save-results \
+    --visualize
 ```
 
-### Issue: Training is too slow
+### Using the Models Programmatically
 
-**Solutions**:
-1. Use smaller backbone (ResNet18 instead of ResNet50)
-2. Reduce input size (320x320 instead of 448x448)
-3. Use fewer FPN levels (only P4, P5)
-4. Train on subset of data first
-
-## Common Mistakes
-
-### ❌ Mistake 1: Wrong box format
 ```python
-# WRONG: Mixing formats
-boxes_xywh = [0.5, 0.5, 0.2, 0.2]
-iou = compute_iou(boxes_xywh, boxes_xyxy)  # Different formats!
+import torch
+from models import FCOSDetector, FCOSDecoder
+from config import config
 
-# CORRECT: Consistent format
-boxes_xyxy1 = [0.4, 0.4, 0.6, 0.6]
-boxes_xyxy2 = [0.45, 0.45, 0.65, 0.65]
-iou = compute_iou(boxes_xyxy1, boxes_xyxy2, box_format='xyxy')
-```
+# Load model
+model = FCOSDetector(num_classes=80)
+checkpoint = torch.load('checkpoints/best.pth')
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
 
-### ❌ Mistake 2: Not normalizing boxes
-```python
-# WRONG: Absolute pixel coordinates
-boxes = [100, 100, 200, 200]
+# Create decoder
+decoder = FCOSDecoder(
+    strides=[8, 16, 32],
+    conf_threshold=0.05,
+    nms_threshold=0.5
+)
 
-# CORRECT: Normalized [0, 1]
-boxes = [100/448, 100/448, 200/448, 200/448]
-```
-
-### ❌ Mistake 3: Forgetting to set model mode
-```python
-# WRONG: No mode set
-predictions = model(images)
-
-# CORRECT: Set appropriate mode
-model.train()  # For training
-predictions = model(images)
-
-model.eval()  # For evaluation
+# Run inference
 with torch.no_grad():
-    predictions = model(images)
+    cls_logits, reg_preds, centerness = model(images)
+    detections = decoder.decode(cls_logits, reg_preds, centerness)
+
+# Process detections
+for det in detections[0]:  # First image
+    box, score, label = det
+    print(f"Class {label}, Score: {score:.2f}, Box: {box}")
 ```
 
-### ❌ Mistake 4: Not clipping gradients
+## 🐛 Troubleshooting
+
+### CUDA Out of Memory
+
+```bash
+# Reduce batch size
+python train.py --model fcos --batch-size 2
+
+# Or use gradient accumulation (modify train.py)
+```
+
+### Loss is NaN
+
+Check:
+1. Learning rate too high → Try `--lr 1e-5`
+2. Gradient explosion → Gradient clipping is enabled by default
+3. Bad data → Visualize training samples
+
+### Low mAP (<5%)
+
+Check:
+1. Model predictions: `python evaluate.py --visualize`
+2. Target encoding: Print targets in loss function
+3. NMS threshold: Try `--nms-threshold 0.7`
+4. Confidence threshold: Try `--conf-threshold 0.01`
+
+### Training Too Slow
+
+1. Reduce dataset size (edit `config.py`):
 ```python
-# WRONG: Can lead to gradient explosion
-loss.backward()
-optimizer.step()
-
-# CORRECT: Clip gradients
-loss.backward()
-torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
-optimizer.step()
+# In COCODetectionDataset
+self.img_ids = self.img_ids[:1000]  # Use only 1000 images
 ```
 
-## Deliverables
+2. Use smaller backbone:
+```python
+# In config.py
+fcos_backbone = 'resnet18'  # Instead of resnet50
+```
 
-### Required Files
+3. Reduce input size:
+```python
+input_size = 320  # Instead of 448
+```
 
-1. **Code** (`lab6_template.py`):
-   - All TODOs completed
-   - Code runs without errors
-   - Passes all tests
+## 📈 Performance Optimization
 
-2. **Trained Models**:
-   - `checkpoints/yolo_best.pth`
-   - `checkpoints/fcos_best.pth`
-   - Training logs
+### Speed up Training
 
-3. **Report** (PDF, 5-10 pages):
-   - **Introduction**: Brief overview of YOLO and FCOS
-   - **Implementation**: Key design decisions and challenges
-   - **Results**: 
-     - Training curves (loss over epochs)
-     - Evaluation metrics table
-     - Example predictions (5-10 images)
-   - **Analysis**:
-     - YOLO vs FCOS comparison
-     - Scale-specific performance (APS, APM, APL)
-     - Failure cases and why
-   - **Conclusion**: Lessons learned and potential improvements
+1. **Mixed Precision Training** (requires Apex or PyTorch >= 1.6):
+```python
+from torch.cuda.amp import autocast, GradScaler
 
-### Grading Rubric (100 points)
+scaler = GradScaler()
 
-**Code (60 points)**:
-- Dataset implementation: 10 pts
-- Utility functions (IoU, NMS): 5 pts
-- YOLO model and loss: 15 pts
-- FCOS model and loss: 20 pts
-- Training and evaluation: 10 pts
+with autocast():
+    loss = model(images, targets)
 
-**Model Performance (20 points)**:
-- YOLO mAP ≥ 15%: 8 pts (partial: 10-15% → 4 pts)
-- FCOS mAP ≥ 25%: 12 pts (partial: 20-25% → 6 pts)
+scaler.scale(loss).backward()
+scaler.step(optimizer)
+scaler.update()
+```
 
-**Report (20 points)**:
-- Completeness and clarity: 8 pts
-- Results presentation: 6 pts
-- Analysis depth: 6 pts
+2. **Multi-GPU Training**:
+```python
+model = nn.DataParallel(model)
+```
 
-**Bonus (up to 10% extra credit)**:
-- Implement Soft-NMS: +2%
-- Implement DIoU/CIoU loss: +3%
-- Advanced augmentation experiments: +2%
-- Multi-scale training: +3%
+3. **Increase num_workers**:
+```bash
+python train.py --num-workers 8
+```
 
-## Resources
+### Improve Accuracy
+
+1. **Longer training**: `--epochs 50`
+2. **Data augmentation**: Edit `datasets/transforms.py`
+3. **Larger backbone**: Use ResNet101
+4. **Multi-scale training**: Train on multiple input sizes
+5. **Better optimizer**: Try SGD with momentum
+
+## 📚 Architecture Details
+
+### YOLO
+
+- **Grid-based detection**: Divides image into 7×7 grid
+- **Multi-component loss**: Localization + confidence + classification
+- **Advantages**: Simple, fast
+- **Disadvantages**: Struggles with small objects, multiple objects per cell
+
+### FCOS
+
+- **Anchor-free**: Per-pixel prediction
+- **Feature Pyramid**: Multi-scale detection (P3, P4, P5)
+- **Center-ness**: Quality score for predictions
+- **Focal Loss**: Handles class imbalance
+- **Advantages**: Better small object detection, no anchor tuning
+- **Disadvantages**: Slower than YOLO, more complex
+
+## 🔬 Advanced Features
+
+### Soft-NMS
+
+Already implemented in `utils/nms.py`:
+
+```python
+from utils.nms import soft_nms
+
+keep, updated_scores = soft_nms(boxes, scores, sigma=0.5)
+```
+
+### Class-wise NMS
+
+```python
+from utils.nms import batched_nms
+
+keep = batched_nms(boxes, scores, labels, iou_threshold=0.5)
+```
+
+### Custom Metrics
+
+```python
+from utils.metrics import DetectionMetrics
+
+metrics = DetectionMetrics(num_classes=80)
+metrics.update(pred_boxes, pred_scores, pred_labels, gt_boxes, gt_labels)
+results = metrics.get_results()
+```
+
+## 📝 File Descriptions
+
+### Core Files
+
+- **config.py**: All hyperparameters and paths
+- **train.py**: Training loop with logging
+- **evaluate.py**: Evaluation with COCO metrics
+
+### Models
+
+- **backbone.py**: ResNet feature extractors
+- **fpn.py**: Feature Pyramid Network
+- **yolo.py**: YOLO detector + decoder
+- **fcos.py**: FCOS detector + decoder
+
+### Datasets
+
+- **coco_dataset.py**: COCO data loader
+- **transforms.py**: Image transformations
+
+### Losses
+
+- **yolo_loss.py**: YOLO multi-part loss
+- **focal_loss.py**: Focal loss + FCOS loss
+
+### Utils
+
+- **nms.py**: NMS variants and box utilities
+- **metrics.py**: Evaluation metrics
+- **visualization.py**: Plotting functions
+
+## 🎓 Learning Resources
 
 ### Papers
-- **YOLO**: [You Only Look Once (Redmon et al., 2016)](https://arxiv.org/abs/1506.02640)
-- **FCOS**: [FCOS: Fully Convolutional One-Stage (Tian et al., 2019)](https://arxiv.org/abs/1904.01355)
-- **FPN**: [Feature Pyramid Networks (Lin et al., 2017)](https://arxiv.org/abs/1612.03144)
-- **Focal Loss**: [Focal Loss for Dense Detection (Lin et al., 2017)](https://arxiv.org/abs/1708.02002)
+
+1. **YOLO**: [You Only Look Once (2016)](https://arxiv.org/abs/1506.02640)
+2. **FCOS**: [FCOS: Fully Convolutional One-Stage (2019)](https://arxiv.org/abs/1904.01355)
+3. **FPN**: [Feature Pyramid Networks (2017)](https://arxiv.org/abs/1612.03144)
+4. **Focal Loss**: [Focal Loss for Dense Detection (2017)](https://arxiv.org/abs/1708.02002)
 
 ### Documentation
+
 - [PyTorch Docs](https://pytorch.org/docs/)
-- [COCO API](https://github.com/cocodataset/cocoapi)
-- [Torchvision](https://pytorch.org/vision/stable/index.html)
+- [COCO Dataset](https://cocodataset.org/)
+- [TorchVision Models](https://pytorch.org/vision/stable/models.html)
 
-### Reference Implementations
-- [Ultralytics YOLO](https://github.com/ultralytics/yolov5)
-- [MMDetection](https://github.com/open-mmlab/mmdetection)
-- [Detectron2](https://github.com/facebookresearch/detectron2)
+## 🤝 Contributing
 
-## Support
+This is a lab project for educational purposes. Suggestions and improvements are welcome!
 
-**Office Hours**: [Your office hours]
-**Forum**: [Your course forum]
-**Email**: [Your email]
+## 📄 License
 
-## License
+Educational use only. COCO dataset has its own license.
 
-This lab material is for educational purposes only.
-COCO dataset: [COCO License](https://cocodataset.org/#termsofuse)
+## 🙏 Acknowledgments
+
+- COCO dataset team
+- PyTorch team
+- Original paper authors
+
+## 📞 Support
+
+For questions about this lab:
+- Check troubleshooting section
+- Review lecture materials
+- Ask during office hours
 
 ---
 
-**Good luck! 🚀**
+**Good luck with your object detection implementation! 🎯**
 
-Remember: Start early, test incrementally, and ask for help when stuck!
+
+
+
+
+
+-----------
+
+🎯 Key Features Implemented
+Models
+
+✅ YOLO: Grid-based detection with ResNet backbone
+✅ FCOS: Anchor-free with FPN multi-scale detection
+✅ ResNet18/50 backbones with pretrained weights
+✅ Feature Pyramid Network (FPN)
+
+Loss Functions
+
+✅ YOLO multi-component loss (coord + conf + class)
+✅ Focal loss for class imbalance
+✅ GIoU loss for better box regression
+✅ Center-ness prediction
+
+Training Pipeline
+
+✅ Complete training loop with validation
+✅ TensorBoard logging
+✅ Checkpoint saving/loading
+✅ Learning rate scheduling
+✅ Gradient clipping
+
+Evaluation
+
+✅ COCO API integration
+✅ mAP, AP50, AP75 metrics
+✅ Scale-specific metrics (APS, APM, APL)
+✅ Visualization of predictions
+
+Utilities
+
+✅ NMS (hard and soft variants)
+✅ Batched NMS per class
+✅ IoU computation (multiple formats)
+✅ Box format conversions
+✅ Detection metrics
+
+📊 What Students Will Learn
+
+Data Handling: COCO format, batch collation, augmentation
+Model Architecture: Backbone, FPN, detection heads
+Loss Design: Multi-task learning, focal loss, GIoU
+Training: Proper training loops, validation, logging
+Evaluation: COCO metrics, mAP computation
+Post-processing: NMS, confidence thresholding
+
+🎓 Expected Outcomes
+After 20 epochs:
+
+YOLO: 15-20% mAP
+FCOS: 25-30% mAP
+
+Students will understand:
+
+Why FCOS performs better on small objects
+How anchor-free detectors work
+The importance of multi-scale features
+How to handle class imbalance
+
+📝 All Files Are Ready!
+You can now:
+
+Copy each file into your local directory
+Follow the Quick Start Guide
+Refer to README.md for detailed documentation
+
+All files are production-ready with proper error handling, documentation, and following best practices. Students can start training immediately after setup! 🎉

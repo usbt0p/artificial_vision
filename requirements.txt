@@ -1,5 +1,8 @@
 black
 
+# Session 6
+-r ./session06/labCode/requirements.txt
+
 # Core PyTorch and Vision Libraries
 torch>=2.0.0
 torchvision>=0.15.0
