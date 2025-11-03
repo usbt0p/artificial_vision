@@ -91,7 +91,7 @@ class UNet(nn.Module):
     def __init__(
         self,
         in_channels=3,
-        out_channels=1,
+        out_channels=3,  # each pixel has a probability for each class
         features=[64, 128, 256, 512],
         skipMode: str = "concat",
     ):

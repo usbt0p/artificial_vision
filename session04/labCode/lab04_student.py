@@ -54,6 +54,17 @@ def calculate_iou(pred, target, threshold=0.5):
     return iou
 
 
+def process_batch_masks(masks):
+    """Process batch masks to one-hot encoding"""
+    masks = (masks * 255 - 1).long()  # get 0/1/2 values
+    masks = masks.squeeze(1)  # (B, H, W)
+
+    num_classes = 3
+    masks_one_hot = torch.nn.functional.one_hot(masks, num_classes)
+    masks_one_hot = masks_one_hot.permute(0, 3, 1, 2).float()  # (B, 3, H, W)
+    return masks_one_hot
+
+
 def train_epoch(model, dataloader, optimizer, criterion: nn.Module, device) -> tuple:
     """Train for one epoch"""
     model.train()
@@ -62,7 +73,8 @@ def train_epoch(model, dataloader, optimizer, criterion: nn.Module, device) -> t
 
     # Complete training loop
     for images, masks in tqdm(dataloader, desc="Training"):
-        images, masks = images.to(device), masks.to(device)
+        masks_one_hot = process_batch_masks(masks)
+        images, masks = images.to(device), masks_one_hot.to(device)
 
         # Forward pass
         optimizer.zero_grad()
@@ -90,7 +102,8 @@ def validate(model, dataloader, criterion, device):
 
     with torch.no_grad():
         for images, masks in tqdm(dataloader, desc="Validation"):
-            images, masks = images.to(device), masks.to(device)
+            masks_one_hot = process_batch_masks(masks)
+            images, masks = images.to(device), masks_one_hot.to(device)
 
             # Forward pass
             outputs = model(images)
@@ -128,8 +141,8 @@ def visualize_predictions(models: dict, dataloader, device):
             with torch.no_grad():
                 for name, model in models.items():
                     output = model(image)
-                    pred = torch.sigmoid(output)  # > 0.5
-                    preds[name] = pred.cpu().squeeze().numpy()
+                    pred = torch.argmax(torch.softmax(output, dim=1), dim=1)
+                    preds[name] = pred.cpu().numpy()
 
             fig.clf()  # Clear previous plot
 
@@ -155,7 +168,7 @@ def visualize_predictions(models: dict, dataloader, device):
 
             for i, (name, pred) in enumerate(preds.items()):
                 ax = fig.add_subplot(bottom_gs[0, i])
-                ax.imshow(pred, cmap="gray")
+                ax.imshow(pred.squeeze(0), vmin=0, vmax=2)
                 ax.set_title(f"{name.capitalize()}")
                 ax.axis("off")
 
@@ -241,7 +254,7 @@ def get_dataloaders(config: dict):
 def main(
     batch_size: int = 16,
     learning_rate: float = 0.001,
-    epochs: int = 50,
+    epochs: int = 1,
     image_size: int = 128,
     skip_mode: str = "concat",
 ):
@@ -259,7 +272,7 @@ def main(
     os.makedirs(os.path.join(currentDirectory, config["skip_mode"]), exist_ok=True)
 
     # Setup loss
-    criterion = losses.DiceLoss()
+    criterion = losses.CombinedLoss()
 
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
@@ -267,7 +280,7 @@ def main(
         os.path.join(currentDirectory, config["skip_mode"], "best_unet_model.pth")
     ):
         model = UNet.UNet(
-            in_channels=3, out_channels=1, skipMode=config["skip_mode"]
+            in_channels=3, out_channels=3, skipMode=config["skip_mode"]
         ).to(device)
         model.load_state_dict(
             torch.load(
@@ -297,7 +310,7 @@ def main(
 
     else:
         model = UNet.UNet(
-            in_channels=3, out_channels=1, skipMode=config["skip_mode"]
+            in_channels=3, out_channels=3, skipMode=config["skip_mode"]
         ).to(device)
 
         # Setup optimizer
@@ -372,7 +385,8 @@ def main(
     gradient_norms = {}
     model.train()
     images, masks = next(iter(trainLoader))
-    images, masks = images.to(device), masks.to(device)
+    masks_one_hot = process_batch_masks(masks)
+    images, masks = images.to(device), masks_one_hot.to(device)
 
     outputs = model(images)
     loss = criterion(outputs, masks)
@@ -436,7 +450,7 @@ def analyze_skip_connections():
     # Run experiments for each mode
     for mode in ["concat", "add", "attention"]:
         results[mode] = main(skip_mode=mode, **config)
-        models[mode] = UNet.UNet(in_channels=3, out_channels=1, skipMode=mode).to(
+        models[mode] = UNet.UNet(in_channels=3, out_channels=3, skipMode=mode).to(
             device
         )
         models[mode].load_state_dict(

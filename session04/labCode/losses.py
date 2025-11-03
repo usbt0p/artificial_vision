@@ -31,6 +31,23 @@ class DiceLoss(nn.Module):
         return 1 - dice
 
 
+class MultiClassDiceLoss(nn.Module):
+    """Dice loss for multi-class segmentation"""
+
+    def __init__(self, smooth=1e-6):
+        super().__init__()
+        self.smooth = smooth
+
+    def forward(self, preds, targets):
+        # preds: softmax (B, C, H, W)
+        # targets: one hot (B, C, H, W)
+        preds = torch.softmax(preds, dim=1)
+        intersection = (preds * targets).sum(dim=(2, 3))
+        union = preds.sum(dim=(2, 3)) + targets.sum(dim=(2, 3))
+        dice = (2.0 * intersection + self.smooth) / (union + self.smooth)
+        return 1 - dice.mean()
+
+
 class FocalLoss(nn.Module):
     """Focal loss for addressing class imbalance"""
 
@@ -64,7 +81,7 @@ class CombinedLoss(nn.Module):
         super().__init__()
         # Task 3.3: Initialize component losses
         self.ce_loss = nn.CrossEntropyLoss()
-        self.dice_loss = DiceLoss()
+        self.dice_loss = MultiClassDiceLoss()
         self.focal_loss = FocalLoss()
         self.weights = weights
 
@@ -75,6 +92,6 @@ class CombinedLoss(nn.Module):
         # Add each loss component with its weight
         total_loss += self.weights.get("ce", 0) * self.ce_loss(pred, target)
         total_loss += self.weights.get("dice", 0) * self.dice_loss(pred, target)
-        total_loss += self.weights.get("focal", 0) * self.focal_loss(pred, target)
+        # total_loss += self.weights.get("focal", 0) * self.focal_loss(pred, target)
 
         return total_loss
