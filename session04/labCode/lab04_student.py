@@ -38,20 +38,35 @@ currentDirectory = os.path.dirname(os.path.abspath(__file__))
 # ================== Training and Evaluation Functions ==================
 
 
-def calculate_iou(pred, target, threshold=0.5):
-    """Calculate Intersection over Union"""
-    # Task 3.4: Implement IoU calculation
-    # 1. Threshold predictions
-    pred = (pred > threshold).float()
+def calculate_iou(pred, target, num_classes=3):
+    """Calculate Intersection over Union for multi-class segmentation"""
+    # pred: (B, C, H, W) logits
+    # target: (B, C, H, W) one-hot encoded
 
-    # 2. Calculate intersection and union
-    intersection = (pred * target).sum()
-    union = pred.sum() + target.sum() - intersection
+    # Convert predictions to class indices
+    pred = torch.argmax(pred, dim=1)  # (B, H, W)
 
-    # 3. Return IoU score
-    iou = intersection / union if union > 0 else 0
+    # Convert target from one-hot to class indices
+    target = torch.argmax(target, dim=1)  # (B, H, W)
 
-    return iou
+    # Calculate IoU for each class
+    ious = []
+    for cls in range(num_classes):
+        pred_mask = pred == cls
+        target_mask = target == cls
+
+        intersection = (pred_mask & target_mask).float().sum()
+        union = (pred_mask | target_mask).float().sum()
+
+        if union > 0:
+            ious.append((intersection / union).item())
+        else:
+            # If class doesn't appear in batch, skip it
+            ious.append(float("nan"))
+
+    # Return mean IoU (ignoring NaN values for classes not in batch)
+    valid_ious = [iou for iou in ious if not np.isnan(iou)]
+    return np.mean(valid_ious) if valid_ious else 0.0
 
 
 def process_batch_masks(masks):
@@ -330,9 +345,9 @@ def main(
             train_loss, train_iou = train_epoch(
                 model, trainLoader, optimizer, criterion, device
             )
-            train_iou = train_iou.cpu()
+            train_iou = train_iou
             val_loss, val_iou = validate(model, valLoader, criterion, device)
-            val_iou = val_iou.cpu()
+            val_iou = val_iou
 
             # Save metrics
             train_losses.append(train_loss)
