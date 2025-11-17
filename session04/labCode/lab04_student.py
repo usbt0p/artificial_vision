@@ -463,7 +463,7 @@ def analyze_skip_connections():
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
-        "epochs": 1,
+        "epochs": 50,
         "image_size": 128,
     }
 

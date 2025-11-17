@@ -78,4 +78,5 @@ def main(addNew: bool = False, createGraph: bool = True) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main(addNew=True, createGraph=False)
