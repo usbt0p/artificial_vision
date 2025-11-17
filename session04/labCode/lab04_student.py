@@ -19,6 +19,7 @@ from tqdm import tqdm
 import time
 from prettytable import PrettyTable
 import warnings
+import ablation
 import losses
 import UNet
 import sys
@@ -273,6 +274,7 @@ def main(
     epochs: int = 1,
     image_size: int = 128,
     skip_mode: str = "concat",
+    storeData: bool = True,
 ):
     # Hyperparameters
     config = {
@@ -292,8 +294,11 @@ def main(
 
     # Initialize model
     # if we have best_unet_model.pth use it instead training:
-    if os.path.exists(
-        os.path.join(currentDirectory, config["skip_mode"], "best_unet_model.pth")
+    if (
+        os.path.exists(
+            os.path.join(currentDirectory, config["skip_mode"], "best_unet_model.pth")
+        )
+        and storeData
     ):
         model = UNet.UNet(
             in_channels=3, out_channels=3, skipMode=config["skip_mode"]
@@ -364,7 +369,7 @@ def main(
             )
 
             # Save best model
-            if val_iou > best_iou:
+            if val_iou > best_iou and storeData:
                 best_iou = val_iou
                 torch.save(
                     model.state_dict(),
@@ -377,22 +382,23 @@ def main(
         training_time = time.time() - start_time
         print(f"Training time: {training_time:.2f} seconds")
 
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
-            np.array(train_losses),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
-            np.array(val_losses),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
-            np.array(train_ious),
-        )
-        np.save(
-            os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
-            np.array(val_ious),
-        )
+        if storeData:
+            np.save(
+                os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
+                np.array(train_losses),
+            )
+            np.save(
+                os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
+                np.array(val_losses),
+            )
+            np.save(
+                os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
+                np.array(train_ious),
+            )
+            np.save(
+                os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
+                np.array(val_ious),
+            )
 
         # Clear optimizer gradients
         optimizer.zero_grad()
@@ -506,14 +512,10 @@ def analyze_skip_connections():
 
 def ablation_study():
     """Perform ablation study on U-Net components"""
-    # TODO: Implement ablation study
+    # Implement ablation study
     # Test: no skip connections, no batch norm, different depths
 
-    ablation_results = {}
-
-    # TODO: Run different configurations
-
-    return ablation_results
+    ablation.main()
 
 
 if __name__ == "__main__":
@@ -522,6 +524,6 @@ if __name__ == "__main__":
 
     # Run analysis (optional)
     analyze_skip_connections()
-    # ablation_study()
+    ablation_study()
 
     plt.show()
