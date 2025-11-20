@@ -529,7 +529,7 @@ if __name__ == "__main__":
     # main()
 
     # Run analysis (optional)
-    analyze_skip_connections()
     ablation_study()
+    analyze_skip_connections()
 
     plt.show()
