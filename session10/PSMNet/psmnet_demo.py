@@ -38,6 +38,7 @@ from utils.visualization import colorize_depth, save_depth_visualization
 # Dataset: synthetic stereo (left/right/disp) like your other demos
 # ================================================================
 
+
 class StereoDispDataset(Dataset):
     """
     Stereo disparity dataset:
@@ -49,6 +50,7 @@ class StereoDispDataset(Dataset):
 
     Optional resize.
     """
+
     def __init__(self, root: str, resize: tuple[int, int] | None = None):
         self.root = Path(root)
         self.left_root = self.root / "left"
@@ -76,7 +78,9 @@ class StereoDispDataset(Dataset):
             raise RuntimeError(f"Failed to read stereo pair {left_path}, {right_path}")
 
         left_rgb = cv2.cvtColor(left_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-        right_rgb = cv2.cvtColor(right_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        right_rgb = (
+            cv2.cvtColor(right_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        )
 
         # Load disparity (uint16, scaled by 16)
         disp_raw = cv2.imread(str(disp_path), cv2.IMREAD_UNCHANGED)
@@ -86,13 +90,13 @@ class StereoDispDataset(Dataset):
 
         if self.resize is not None:
             w, h = self.resize
-            left_rgb  = cv2.resize(left_rgb,  (w, h), interpolation=cv2.INTER_AREA)
+            left_rgb = cv2.resize(left_rgb, (w, h), interpolation=cv2.INTER_AREA)
             right_rgb = cv2.resize(right_rgb, (w, h), interpolation=cv2.INTER_AREA)
-            disp      = cv2.resize(disp,      (w, h), interpolation=cv2.INTER_NEAREST)
+            disp = cv2.resize(disp, (w, h), interpolation=cv2.INTER_NEAREST)
 
-        left_t  = torch.from_numpy(left_rgb).permute(2, 0, 1)   # (3,H,W)
+        left_t = torch.from_numpy(left_rgb).permute(2, 0, 1)  # (3,H,W)
         right_t = torch.from_numpy(right_rgb).permute(2, 0, 1)  # (3,H,W)
-        disp_t  = torch.from_numpy(disp).unsqueeze(0)           # (1,H,W)
+        disp_t = torch.from_numpy(disp).unsqueeze(0)  # (1,H,W)
 
         return left_t, right_t, disp_t
 
@@ -101,11 +105,13 @@ class StereoDispDataset(Dataset):
 # PSMNet components
 # ================================================================
 
+
 class SpatialPyramidPooling(nn.Module):
     """
     SPP module using adaptive pooling (close in spirit to PSMNet's SPP):
     pool to 1x1, 2x2, 4x4, 8x8 → 1x1 conv → upsample → concat.
     """
+
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
@@ -137,8 +143,13 @@ class SpatialPyramidPooling(nn.Module):
 
         # Fusion conv after concatenation of (x + 4 pooled branches)
         self.fusion = nn.Sequential(
-            nn.Conv2d(in_channels + 4 * out_channels, out_channels,
-                      kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(
+                in_channels + 4 * out_channels,
+                out_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+            ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
         )
@@ -177,6 +188,7 @@ class PSMNetSimplified(nn.Module):
     - 3D CNN: regularization over (D, H, W).
     - soft-argmin: disparity regression.
     """
+
     def __init__(self, max_disp: int = 192):
         super().__init__()
         self.max_disp = max_disp
@@ -230,7 +242,7 @@ class PSMNetSimplified(nn.Module):
         x = self.conv1(x)  # /2
         x = self.conv2(x)  # /4
         x = self.conv3(x)  # /4
-        x = self.spp(x)    # /4 with context
+        x = self.spp(x)  # /4 with context
         return x  # (B,32,H/4,W/4)
 
     def build_cost_volume(self, left_feat, right_feat):
@@ -269,7 +281,7 @@ class PSMNetSimplified(nn.Module):
         B, _, H, W = left.shape
 
         # 1) Feature extraction (shared weights)
-        left_feat  = self.feature_extraction(left)
+        left_feat = self.feature_extraction(left)
         right_feat = self.feature_extraction(right)
         _, C, Hf, Wf = left_feat.shape
 
@@ -280,8 +292,8 @@ class PSMNetSimplified(nn.Module):
         x = self.conv3d_1(cost)
         x = self.conv3d_2(x)
         x = self.conv3d_3(x)
-        x = self.conv3d_out(x)        # (B,1,D',Hf,Wf)
-        x = x.squeeze(1)              # (B,D',Hf,Wf)
+        x = self.conv3d_out(x)  # (B,1,D',Hf,Wf)
+        x = x.squeeze(1)  # (B,D',Hf,Wf)
 
         # 4) Soft-argmin over disparity → [0, D'-1] at feature scale
         # soft_argmin expects cost volume (B,D,H,W)
@@ -305,6 +317,7 @@ class PSMNetSimplified(nn.Module):
 # ================================================================
 # Training loop
 # ================================================================
+
 
 def train_psmnet(
     data_root: str,
@@ -335,7 +348,7 @@ def train_psmnet(
         n_batches = 0
 
         for left_t, right_t, disp_gt in dataloader:
-            left_t  = left_t.to(device)   # (B,3,H,W)
+            left_t = left_t.to(device)  # (B,3,H,W)
             right_t = right_t.to(device)  # (B,3,H,W)
             disp_gt = disp_gt.to(device)  # (B,1,H,W)
 
@@ -386,6 +399,7 @@ def train_psmnet(
 # Inference: predict disparity + depth on a single stereo pair
 # ================================================================
 
+
 def infer_psmnet(
     left_path: str,
     right_path: str,
@@ -424,15 +438,15 @@ def infer_psmnet(
 
     # Convert disparity → depth
     depth = disparity_to_depth(
-        torch.from_numpy(disp_np),
-        focal_length,
-        baseline
+        torch.from_numpy(disp_np), focal_length, baseline
     ).numpy()
 
     # Some stats
     valid = disp_np > 0
     if valid.any():
-        print(f"Disparity range: [{disp_np[valid].min():.2f}, {disp_np[valid].max():.2f}] px")
+        print(
+            f"Disparity range: [{disp_np[valid].min():.2f}, {disp_np[valid].max():.2f}] px"
+        )
         print(f"Depth range: [{depth[valid].min():.2f}, {depth[valid].max():.2f}] m")
     else:
         print("No valid disparities > 0 found.")
@@ -446,14 +460,23 @@ def infer_psmnet(
 # CLI
 # ================================================================
 
+
 def main():
-    parser = argparse.ArgumentParser(description="PSMNet-style stereo demo (simplified)")
+    parser = argparse.ArgumentParser(
+        description="PSMNet-style stereo demo (simplified)"
+    )
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     # ---- Train ----
-    p_train = subparsers.add_parser("train", help="Train PSMNet on synthetic stereo data")
-    p_train.add_argument("--data_root", type=str, required=True,
-                         help="Root of stereo data (with left/right/disp)")
+    p_train = subparsers.add_parser(
+        "train", help="Train PSMNet on synthetic stereo data"
+    )
+    p_train.add_argument(
+        "--data_root",
+        type=str,
+        required=True,
+        help="Root of stereo data (with left/right/disp)",
+    )
     p_train.add_argument("--epochs", type=int, default=10)
     p_train.add_argument("--batch_size", type=int, default=4)
     p_train.add_argument("--lr", type=float, default=1e-3)
@@ -466,7 +489,9 @@ def main():
     p_infer = subparsers.add_parser("infer", help="Run inference with trained PSMNet")
     p_infer.add_argument("--left", type=str, required=True, help="Left image path")
     p_infer.add_argument("--right", type=str, required=True, help="Right image path")
-    p_infer.add_argument("--model", type=str, required=True, help="Path to psmnet_simplified.pth")
+    p_infer.add_argument(
+        "--model", type=str, required=True, help="Path to psmnet_simplified.pth"
+    )
     p_infer.add_argument("--max_disp", type=int, default=192)
     p_infer.add_argument("--focal_length", type=float, default=721.5)
     p_infer.add_argument("--baseline", type=float, default=0.54)
@@ -499,8 +524,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
 
 """

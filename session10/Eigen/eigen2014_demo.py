@@ -51,6 +51,7 @@ class EigenCoarseNet(nn.Module):
 
     Outputs (B,1,Hc,Wc), interpreted as log-depth or depth.
     """
+
     def __init__(
         self,
         coarse_height: int = 74,
@@ -64,9 +65,9 @@ class EigenCoarseNet(nn.Module):
         self.input_size = input_size
 
         alex = models.alexnet(
-            weights=models.AlexNet_Weights.IMAGENET1K_V1
-            if use_pretrained_alexnet
-            else None
+            weights=(
+                models.AlexNet_Weights.IMAGENET1K_V1 if use_pretrained_alexnet else None
+            )
         )
         self.features = alex.features  # conv1–5
 
@@ -104,6 +105,7 @@ class EigenFineNet(nn.Module):
     - Conv2, Conv3 refine.
     - Output is upsampled back to full resolution.
     """
+
     def __init__(self, input_size: tuple[int, int] = (224, 224)):
         super().__init__()
         self.input_size = input_size
@@ -117,20 +119,20 @@ class EigenFineNet(nn.Module):
     def forward(self, x_rgb: torch.Tensor, coarse: torch.Tensor) -> torch.Tensor:
         B, _, H, W = x_rgb.shape
 
-        f1 = F.relu(self.conv1(x_rgb))   # (B,63,H,W)
-        f1p = self.pool1(f1)             # (B,63,H/2,W/2)
+        f1 = F.relu(self.conv1(x_rgb))  # (B,63,H,W)
+        f1p = self.pool1(f1)  # (B,63,H/2,W/2)
 
         coarse_resized = F.interpolate(
             coarse, size=f1p.shape[2:], mode="bilinear", align_corners=False
-        )                                # (B,1,H/2,W/2)
+        )  # (B,1,H/2,W/2)
 
         x_cat = torch.cat([f1p, coarse_resized], dim=1)  # (B,64,H/2,W/2)
         x = F.relu(self.conv2(x_cat))
-        x = self.conv3(x)                # (B,1,H/2,W/2)
+        x = self.conv3(x)  # (B,1,H/2,W/2)
 
         x_up = F.interpolate(
             x, size=(H, W), mode="bilinear", align_corners=False
-        )                                # (B,1,H,W)
+        )  # (B,1,H,W)
         return x_up
 
 
@@ -138,6 +140,7 @@ class EigenMultiScaleDepthNet(nn.Module):
     """
     Full Eigen-style multi-scale depth network.
     """
+
     def __init__(
         self,
         coarse_height: int = 74,
@@ -172,7 +175,7 @@ class EigenMultiScaleDepthNet(nn.Module):
         )
 
         # Coarse global prediction
-        coarse_map = self.coarse(x_resized)      # (B,1,Hc,Wc)
+        coarse_map = self.coarse(x_resized)  # (B,1,Hc,Wc)
 
         # Fine refinement at AlexNet resolution
         fine_resized = self.fine(x_resized, coarse_map)  # (B,1,Ha,Wa)
@@ -202,6 +205,7 @@ class MonoDepthDataset(Dataset):
             rgb/*.png       # uint8 RGB
             depth/*.png     # uint16 depth in millimeters
     """
+
     def __init__(self, root: str, resize: tuple[int, int] | None = None):
         self.root = Path(root)
         self.rgb_paths = sorted((self.root / "rgb").glob("*.png"))
@@ -237,18 +241,20 @@ class MonoDepthDataset(Dataset):
             depth_m = cv2.resize(depth_m, (w, h), interpolation=cv2.INTER_NEAREST)
 
         # Convert to tensors
-        rgb_t = torch.from_numpy(rgb).permute(2, 0, 1)   # (3,H,W)
-        depth_t = torch.from_numpy(depth_m).unsqueeze(0) # (1,H,W)
+        rgb_t = torch.from_numpy(rgb).permute(2, 0, 1)  # (3,H,W)
+        depth_t = torch.from_numpy(depth_m).unsqueeze(0)  # (1,H,W)
         return rgb_t, depth_t
 
 
 # -------------------------------------------------------------
 # Scale-invariant loss (Eigen et al. 2014 Eq. 4, in log-space)
 # -------------------------------------------------------------
-def scale_invariant_loss(pred_depth: torch.Tensor,
-                         gt_depth: torch.Tensor,
-                         lam: float = 0.5,
-                         eps: float = 1e-6) -> torch.Tensor:
+def scale_invariant_loss(
+    pred_depth: torch.Tensor,
+    gt_depth: torch.Tensor,
+    lam: float = 0.5,
+    eps: float = 1e-6,
+) -> torch.Tensor:
     """
     pred_depth, gt_depth: (B,1,H,W), in meters (positive).
     Loss is computed over valid pixels where gt_depth > 0.
@@ -267,16 +273,16 @@ def scale_invariant_loss(pred_depth: torch.Tensor,
     gt = gt_depth[mask]
     pred = pred_depth[mask]
 
-    gt_clamped   = torch.clamp(gt,   min=1e-3)
+    gt_clamped = torch.clamp(gt, min=1e-3)
     pred_clamped = torch.clamp(pred, min=1e-3)
 
-    log_gt   = torch.log(gt_clamped)
+    log_gt = torch.log(gt_clamped)
     log_pred = torch.log(pred_clamped)
     d = log_gt - log_pred
 
     n = d.numel()
-    term1 = (d ** 2).sum() / n
-    term2 = (d.sum() ** 2) / (n ** 2)
+    term1 = (d**2).sum() / n
+    term2 = (d.sum() ** 2) / (n**2)
     loss = term1 - lam * term2
     return loss
 
@@ -410,7 +416,7 @@ def run_eigen_inference(
         coarse_height=74,
         coarse_width=55,
         alex_input_size=(224, 224),
-        use_pretrained_alexnet=False,   # weights come from the checkpoint
+        use_pretrained_alexnet=False,  # weights come from the checkpoint
     ).to(device)
 
     print(f"Loading weights from {model_path}")
@@ -457,7 +463,6 @@ def run_eigen_inference(
 # -------------------------------------------------------------
 
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Eigen 2014-style Multi-Scale Depth: Train + Inference"
@@ -466,26 +471,45 @@ def main():
 
     # ----- Train mode -----
     p_train = subparsers.add_parser("train", help="Train on synthetic mono data")
-    p_train.add_argument("--data_root", type=str, required=True,
-                         help="Root of mono dataset (e.g., data_synth/mono)")
+    p_train.add_argument(
+        "--data_root",
+        type=str,
+        required=True,
+        help="Root of mono dataset (e.g., data_synth/mono)",
+    )
     p_train.add_argument("--epochs", type=int, default=10)
     p_train.add_argument("--batch_size", type=int, default=4)
     p_train.add_argument("--lr", type=float, default=1e-4)
     p_train.add_argument("--resize_w", type=int, default=320)
     p_train.add_argument("--resize_h", type=int, default=240)
-    p_train.add_argument("--no_pretrained", action="store_true",
-                         help="Disable pretrained AlexNet weights")
+    p_train.add_argument(
+        "--no_pretrained",
+        action="store_true",
+        help="Disable pretrained AlexNet weights",
+    )
     p_train.add_argument("--output_dir", type=str, default="eigen_original_runs")
 
     # ----- Inference mode -----
     p_infer = subparsers.add_parser("infer", help="Run inference on a single image")
     p_infer.add_argument("--image", type=str, required=True, help="Path to RGB image")
-    p_infer.add_argument("--model", type=str, required=True,
-                         help="Path to trained model (e.g. eigen_original_runs/eigen_multiscale.pth)")
-    p_infer.add_argument("--output", type=str, default="eigen_pred.png",
-                         help="Path to save visualization")
-    p_infer.add_argument("--output_coarse", type=str, default=None,
-                         help="Optional path to save coarse-only depth")
+    p_infer.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Path to trained model (e.g. eigen_original_runs/eigen_multiscale.pth)",
+    )
+    p_infer.add_argument(
+        "--output",
+        type=str,
+        default="eigen_pred.png",
+        help="Path to save visualization",
+    )
+    p_infer.add_argument(
+        "--output_coarse",
+        type=str,
+        default=None,
+        help="Optional path to save coarse-only depth",
+    )
 
     args = parser.parse_args()
 
@@ -514,9 +538,6 @@ if __name__ == "__main__":
     main()
 
 
-
-
-
 """
 python eigen2014_demo.py train \
     --data_root data_synth/mono \
@@ -525,7 +546,6 @@ python eigen2014_demo.py train \
     --output_dir eigen_original_runs
 
 """
-
 
 
 """"

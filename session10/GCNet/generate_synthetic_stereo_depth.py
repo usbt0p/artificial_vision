@@ -165,19 +165,32 @@ def generate_dataset(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate synthetic stereo + depth datasets")
-    parser.add_argument("--out_root", type=str, default="data_synth",
-                        help="Output root directory")
-    parser.add_argument("--num_scenes", type=int, default=50,
-                        help="Number of synthetic scenes to generate")
-    parser.add_argument("--width", type=int, default=192,
-                        help="Image width")
-    parser.add_argument("--height", type=int, default=128,
-                        help="Image height")
-    parser.add_argument("--f", type=float, default=200.0,
-                        help="Focal length in pixels (used for disparity)")
-    parser.add_argument("--baseline", type=float, default=0.1,
-                        help="Baseline in meters (used for disparity)")
+    parser = argparse.ArgumentParser(
+        description="Generate synthetic stereo + depth datasets"
+    )
+    parser.add_argument(
+        "--out_root", type=str, default="data_synth", help="Output root directory"
+    )
+    parser.add_argument(
+        "--num_scenes",
+        type=int,
+        default=50,
+        help="Number of synthetic scenes to generate",
+    )
+    parser.add_argument("--width", type=int, default=192, help="Image width")
+    parser.add_argument("--height", type=int, default=128, help="Image height")
+    parser.add_argument(
+        "--f",
+        type=float,
+        default=200.0,
+        help="Focal length in pixels (used for disparity)",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=float,
+        default=0.1,
+        help="Baseline in meters (used for disparity)",
+    )
     args = parser.parse_args()
 
     generate_dataset(
@@ -192,7 +205,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 """

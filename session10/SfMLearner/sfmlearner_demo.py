@@ -46,6 +46,7 @@ from torch.utils.data import Dataset, DataLoader
 # Dataset: monocular sequences → (target, sources)
 # ================================================================
 
+
 class MonoSequenceDataset(Dataset):
     """
     Monocular sequence dataset for SfMLearner-style training.
@@ -64,6 +65,7 @@ class MonoSequenceDataset(Dataset):
         target:  (3,H,W)
         sources: (N_src,3,H,W)  with N_src=2 here (previous + next)
     """
+
     def __init__(self, root: str, resize: tuple[int, int] | None = (192, 128)):
         self.root = Path(root)
         self.resize = resize
@@ -102,25 +104,26 @@ class MonoSequenceDataset(Dataset):
 
         # Paths for t-1, t, t+1
         path_prev = Path(img_paths[center_idx - 1])
-        path_t    = Path(img_paths[center_idx])
+        path_t = Path(img_paths[center_idx])
         path_next = Path(img_paths[center_idx + 1])
 
         img_prev = self._load_image(path_prev)
-        img_t    = self._load_image(path_t)
+        img_t = self._load_image(path_t)
         img_next = self._load_image(path_next)
 
         # Convert to tensors (C,H,W)
-        tgt = torch.from_numpy(img_t).permute(2, 0, 1)          # (3,H,W)
+        tgt = torch.from_numpy(img_t).permute(2, 0, 1)  # (3,H,W)
         src_prev = torch.from_numpy(img_prev).permute(2, 0, 1)  # (3,H,W)
         src_next = torch.from_numpy(img_next).permute(2, 0, 1)
 
-        sources = torch.stack([src_prev, src_next], dim=0)      # (2,3,H,W)
+        sources = torch.stack([src_prev, src_next], dim=0)  # (2,3,H,W)
         return tgt, sources
 
 
 # ================================================================
 # Model: DepthNet + PoseNet
 # ================================================================
+
 
 def conv_block(in_ch, out_ch, kernel_size=3, stride=1, padding=1):
     return nn.Sequential(
@@ -145,6 +148,7 @@ class DepthNet(nn.Module):
     Input:  (B,3,H,W)
     Output: (B,1,H,W) positive depth (via sigmoid + scaling)
     """
+
     def __init__(self, base_channels=32, min_depth=0.1, max_depth=100.0):
         super().__init__()
         self.min_depth = min_depth
@@ -153,26 +157,26 @@ class DepthNet(nn.Module):
         C = base_channels
 
         # Encoder
-        self.conv1 = conv_block(3, C,   7, stride=2, padding=3)   # H/2
-        self.conv2 = conv_block(C, 2*C, 5, stride=2, padding=2)   # H/4
-        self.conv3 = conv_block(2*C, 4*C, 3, stride=2, padding=1) # H/8
-        self.conv4 = conv_block(4*C, 8*C, 3, stride=2, padding=1) # H/16
-        self.conv5 = conv_block(8*C, 8*C, 3, stride=2, padding=1) # H/32
+        self.conv1 = conv_block(3, C, 7, stride=2, padding=3)  # H/2
+        self.conv2 = conv_block(C, 2 * C, 5, stride=2, padding=2)  # H/4
+        self.conv3 = conv_block(2 * C, 4 * C, 3, stride=2, padding=1)  # H/8
+        self.conv4 = conv_block(4 * C, 8 * C, 3, stride=2, padding=1)  # H/16
+        self.conv5 = conv_block(8 * C, 8 * C, 3, stride=2, padding=1)  # H/32
 
         # Decoder with skip connections
-        self.up4 = upconv_block(8*C, 8*C)     # H/16
-        self.iconv4 = conv_block(8*C + 8*C, 8*C)
+        self.up4 = upconv_block(8 * C, 8 * C)  # H/16
+        self.iconv4 = conv_block(8 * C + 8 * C, 8 * C)
 
-        self.up3 = upconv_block(8*C, 4*C)     # H/8
-        self.iconv3 = conv_block(4*C + 4*C, 4*C)
+        self.up3 = upconv_block(8 * C, 4 * C)  # H/8
+        self.iconv3 = conv_block(4 * C + 4 * C, 4 * C)
 
-        self.up2 = upconv_block(4*C, 2*C)     # H/4
-        self.iconv2 = conv_block(2*C + 2*C, 2*C)
+        self.up2 = upconv_block(4 * C, 2 * C)  # H/4
+        self.iconv2 = conv_block(2 * C + 2 * C, 2 * C)
 
-        self.up1 = upconv_block(2*C, C)       # H/2
+        self.up1 = upconv_block(2 * C, C)  # H/2
         self.iconv1 = conv_block(C + C, C)
 
-        self.up0 = upconv_block(C, C)         # H
+        self.up0 = upconv_block(C, C)  # H
         self.iconv0 = conv_block(C, C)
 
         # Final depth head
@@ -180,31 +184,33 @@ class DepthNet(nn.Module):
 
     def forward(self, x):
         # Encoder
-        conv1 = self.conv1(x)        # (B,C,H/2,W/2)
-        conv2 = self.conv2(conv1)    # (B,2C,H/4,W/4)
-        conv3 = self.conv3(conv2)    # (B,4C,H/8,W/8)
-        conv4 = self.conv4(conv3)    # (B,8C,H/16,W/16)
-        conv5 = self.conv5(conv4)    # (B,8C,H/32,W/32)
+        conv1 = self.conv1(x)  # (B,C,H/2,W/2)
+        conv2 = self.conv2(conv1)  # (B,2C,H/4,W/4)
+        conv3 = self.conv3(conv2)  # (B,4C,H/8,W/8)
+        conv4 = self.conv4(conv3)  # (B,8C,H/16,W/16)
+        conv5 = self.conv5(conv4)  # (B,8C,H/32,W/32)
 
         # Decoder with skips
-        up4 = self.up4(conv5)        # (B,8C,H/16)
+        up4 = self.up4(conv5)  # (B,8C,H/16)
         iconv4 = self.iconv4(torch.cat([up4, conv4], dim=1))
 
-        up3 = self.up3(iconv4)       # (B,4C,H/8)
+        up3 = self.up3(iconv4)  # (B,4C,H/8)
         iconv3 = self.iconv3(torch.cat([up3, conv3], dim=1))
 
-        up2 = self.up2(iconv3)       # (B,2C,H/4)
+        up2 = self.up2(iconv3)  # (B,2C,H/4)
         iconv2 = self.iconv2(torch.cat([up2, conv2], dim=1))
 
-        up1 = self.up1(iconv2)       # (B,C,H/2)
+        up1 = self.up1(iconv2)  # (B,C,H/2)
         iconv1 = self.iconv1(torch.cat([up1, conv1], dim=1))
 
-        up0 = self.up0(iconv1)       # (B,C,H)
+        up0 = self.up0(iconv1)  # (B,C,H)
         iconv0 = self.iconv0(up0)
 
         depth_logits = self.depth_head(iconv0)  # (B,1,H,W)
         # Convert to positive depth via sigmoid: d in (min_depth, max_depth)
-        depth = self.min_depth + (self.max_depth - self.min_depth) * torch.sigmoid(depth_logits)
+        depth = self.min_depth + (self.max_depth - self.min_depth) * torch.sigmoid(
+            depth_logits
+        )
         return depth
 
 
@@ -216,21 +222,22 @@ class PoseNet(nn.Module):
             e.g., for 3 frames: (B, 3*3, H, W) = (B,9,H,W).
     Output: (B, N_src, 6)   [tx, ty, tz, rx, ry, rz] per source.
     """
+
     def __init__(self, n_frames: int = 3, base_channels: int = 16):
         super().__init__()
         self.n_frames = n_frames
         in_ch = 3 * n_frames  # target + (n_frames-1) sources
 
         C = base_channels
-        self.conv1 = conv_block(in_ch, C,   7, stride=2, padding=3)
-        self.conv2 = conv_block(C, 2*C, 5, stride=2, padding=2)
-        self.conv3 = conv_block(2*C, 4*C, 3, stride=2, padding=1)
-        self.conv4 = conv_block(4*C, 8*C, 3, stride=2, padding=1)
+        self.conv1 = conv_block(in_ch, C, 7, stride=2, padding=3)
+        self.conv2 = conv_block(C, 2 * C, 5, stride=2, padding=2)
+        self.conv3 = conv_block(2 * C, 4 * C, 3, stride=2, padding=1)
+        self.conv4 = conv_block(4 * C, 8 * C, 3, stride=2, padding=1)
 
-        self.conv5 = conv_block(8*C, 8*C, 3, stride=2, padding=1)
+        self.conv5 = conv_block(8 * C, 8 * C, 3, stride=2, padding=1)
 
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.pose_fc = nn.Linear(8*C, 6 * (n_frames - 1))
+        self.pose_fc = nn.Linear(8 * C, 6 * (n_frames - 1))
 
     def forward(self, target: torch.Tensor, sources: torch.Tensor) -> torch.Tensor:
         """
@@ -254,9 +261,9 @@ class PoseNet(nn.Module):
         x = self.conv4(x)
         x = self.conv5(x)
 
-        x = self.avgpool(x)        # (B,8C,1,1)
+        x = self.avgpool(x)  # (B,8C,1,1)
         x = x.view(B, -1)
-        pose_vec = self.pose_fc(x) # (B,6*(n_frames-1))
+        pose_vec = self.pose_fc(x)  # (B,6*(n_frames-1))
         pose_vec = pose_vec.view(B, N_src, 6)
 
         # Small initialization: scale translation
@@ -268,16 +275,14 @@ class SfMLearner(nn.Module):
     """
     Full model: DepthNet + PoseNet
     """
-    def __init__(self,
-                 min_depth=0.1,
-                 max_depth=100.0,
-                 n_frames=3):
+
+    def __init__(self, min_depth=0.1, max_depth=100.0, n_frames=3):
         super().__init__()
         self.depth_net = DepthNet(min_depth=min_depth, max_depth=max_depth)
         self.pose_net = PoseNet(n_frames=n_frames)
 
     def forward(self, target, sources):
-        depth = self.depth_net(target)          # (B,1,H,W)
+        depth = self.depth_net(target)  # (B,1,H,W)
         pose_vec = self.pose_net(target, sources)  # (B,N_src,6)
         return depth, pose_vec
 
@@ -285,6 +290,7 @@ class SfMLearner(nn.Module):
 # ================================================================
 # Geometry utilities: SE3, backproject, project, warping
 # ================================================================
+
 
 def euler_to_matrix(rx, ry, rz):
     """
@@ -296,23 +302,41 @@ def euler_to_matrix(rx, ry, rz):
     sx, sy, sz = torch.sin(rx), torch.sin(ry), torch.sin(rz)
 
     # Rotation matrices around x,y,z
-    Rx = torch.stack([
-        torch.stack([torch.ones_like(cx), torch.zeros_like(cx), torch.zeros_like(cx)], dim=-1),
-        torch.stack([torch.zeros_like(cx),  cx, -sx], dim=-1),
-        torch.stack([torch.zeros_like(cx),  sx,  cx], dim=-1)
-    ], dim=-2)
+    Rx = torch.stack(
+        [
+            torch.stack(
+                [torch.ones_like(cx), torch.zeros_like(cx), torch.zeros_like(cx)],
+                dim=-1,
+            ),
+            torch.stack([torch.zeros_like(cx), cx, -sx], dim=-1),
+            torch.stack([torch.zeros_like(cx), sx, cx], dim=-1),
+        ],
+        dim=-2,
+    )
 
-    Ry = torch.stack([
-        torch.stack([ cy, torch.zeros_like(cy), sy], dim=-1),
-        torch.stack([torch.zeros_like(cy), torch.ones_like(cy), torch.zeros_like(cy)], dim=-1),
-        torch.stack([-sy, torch.zeros_like(cy), cy], dim=-1)
-    ], dim=-2)
+    Ry = torch.stack(
+        [
+            torch.stack([cy, torch.zeros_like(cy), sy], dim=-1),
+            torch.stack(
+                [torch.zeros_like(cy), torch.ones_like(cy), torch.zeros_like(cy)],
+                dim=-1,
+            ),
+            torch.stack([-sy, torch.zeros_like(cy), cy], dim=-1),
+        ],
+        dim=-2,
+    )
 
-    Rz = torch.stack([
-        torch.stack([cz, -sz, torch.zeros_like(cz)], dim=-1),
-        torch.stack([sz,  cz, torch.zeros_like(cz)], dim=-1),
-        torch.stack([torch.zeros_like(cz), torch.zeros_like(cz), torch.ones_like(cz)], dim=-1)
-    ], dim=-2)
+    Rz = torch.stack(
+        [
+            torch.stack([cz, -sz, torch.zeros_like(cz)], dim=-1),
+            torch.stack([sz, cz, torch.zeros_like(cz)], dim=-1),
+            torch.stack(
+                [torch.zeros_like(cz), torch.zeros_like(cz), torch.ones_like(cz)],
+                dim=-1,
+            ),
+        ],
+        dim=-2,
+    )
 
     # R = Rz * Ry * Rx
     R = Rz @ Ry @ Rx
@@ -349,17 +373,25 @@ def pose_vec_to_mat(pose_vec):
 #     grid = torch.cat([u, v, ones], dim=1)  # (B,3,H,W)
 #     return grid
 
+
 def create_pixel_grid(B, H, W, device, dtype=torch.float32):
     """
     Create homogeneous pixel coordinates grid (B,3,H,W):
     [u, v, 1]^T with u in [0,W-1], v in [0,H-1].
     """
-    u = torch.arange(0, W, device=device, dtype=dtype).view(1, 1, 1, W).expand(B, 1, H, W)
-    v = torch.arange(0, H, device=device, dtype=dtype).view(1, 1, H, 1).expand(B, 1, H, W)
+    u = (
+        torch.arange(0, W, device=device, dtype=dtype)
+        .view(1, 1, 1, W)
+        .expand(B, 1, H, W)
+    )
+    v = (
+        torch.arange(0, H, device=device, dtype=dtype)
+        .view(1, 1, H, 1)
+        .expand(B, 1, H, W)
+    )
     ones = torch.ones_like(u)
     grid = torch.cat([u, v, ones], dim=1)  # (B,3,H,W)
     return grid
-
 
 
 # def backproject(depth, K_inv, pixel_grid):
@@ -378,6 +410,7 @@ def create_pixel_grid(B, H, W, device, dtype=torch.float32):
 #     cam = cam.view(B, 3, H, W)
 #     X = cam * depth                           # (B,3,H,W)
 #     return X
+
 
 def backproject(depth, K_inv, pixel_grid):
     """
@@ -417,12 +450,12 @@ def project(points, K, T):
     X = points.view(B, 3, -1)  # (B,3,HW)
 
     # Transform to source frame
-    R = T[:, :3, :3]           # (B,3,3)
+    R = T[:, :3, :3]  # (B,3,3)
     t = T[:, :3, 3].view(B, 3, 1)  # (B,3,1)
-    Xs = R @ X + t             # (B,3,HW)
+    Xs = R @ X + t  # (B,3,HW)
 
     # Project
-    Xs_cam = K @ Xs            # (B,3,HW)
+    Xs_cam = K @ Xs  # (B,3,HW)
     x = Xs_cam[:, 0, :] / (Xs_cam[:, 2, :] + 1e-8)
     y = Xs_cam[:, 1, :] / (Xs_cam[:, 2, :] + 1e-8)
 
@@ -449,9 +482,8 @@ def warp_image(source, depth_t, pose_vec, K, K_inv):
     B, _, H, W = source.shape
     T = pose_vec_to_mat(pose_vec.unsqueeze(1))[:, 0]  # (B,4,4)
 
-    #pixel_grid = create_pixel_grid(B, H, W, depth_t.device)
+    # pixel_grid = create_pixel_grid(B, H, W, depth_t.device)
     pixel_grid = create_pixel_grid(B, H, W, depth_t.device, dtype=depth_t.dtype)
-
 
     cam_points = backproject(depth_t, K_inv, pixel_grid)  # (B,3,H,W)
 
@@ -464,6 +496,7 @@ def warp_image(source, depth_t, pose_vec, K, K_inv):
 # ================================================================
 # Losses: photometric + smoothness
 # ================================================================
+
 
 def ssim(x, y):
     """
@@ -491,7 +524,7 @@ def photometric_loss(target, recon):
     target, recon: (B,3,H,W)
     """
     l1 = (target - recon).abs().mean(1, keepdim=True)  # (B,1,H,W)
-    s = ssim(target, recon).mean(1, keepdim=True)      # (B,1,H,W)
+    s = ssim(target, recon).mean(1, keepdim=True)  # (B,1,H,W)
     loss = 0.15 * s + 0.85 * l1
     return loss
 
@@ -506,8 +539,12 @@ def smoothness_loss(depth, image):
     depth_dx = torch.abs(depth[:, :, :, 1:] - depth[:, :, :, :-1])
     depth_dy = torch.abs(depth[:, :, 1:, :] - depth[:, :, :-1, :])
 
-    img_dx = torch.mean(torch.abs(image[:, :, :, 1:] - image[:, :, :, :-1]), 1, keepdim=True)
-    img_dy = torch.mean(torch.abs(image[:, :, 1:, :] - image[:, :, :-1, :]), 1, keepdim=True)
+    img_dx = torch.mean(
+        torch.abs(image[:, :, :, 1:] - image[:, :, :, :-1]), 1, keepdim=True
+    )
+    img_dy = torch.mean(
+        torch.abs(image[:, :, 1:, :] - image[:, :, :-1, :]), 1, keepdim=True
+    )
 
     depth_dx *= torch.exp(-img_dx)
     depth_dy *= torch.exp(-img_dy)
@@ -518,6 +555,7 @@ def smoothness_loss(depth, image):
 # ================================================================
 # Training
 # ================================================================
+
 
 def train_sfmlearner(
     data_root: str,
@@ -551,9 +589,11 @@ def train_sfmlearner(
     cy = H / 2.0
 
     # Build K, K_inv (same for whole batch; broadcast later)
-    K = torch.tensor([[fx, 0,  cx],
-                      [0,  fy, cy],
-                      [0,  0,  1]], dtype=torch.float32, device=device).unsqueeze(0)  # (1,3,3)
+    K = torch.tensor(
+        [[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=torch.float32, device=device
+    ).unsqueeze(
+        0
+    )  # (1,3,3)
     K_inv = torch.inverse(K)
 
     train_losses = []
@@ -564,14 +604,16 @@ def train_sfmlearner(
         n_batches = 0
 
         for tgt, srcs in dataloader:
-            tgt = tgt.to(device)              # (B,3,H,W)
-            srcs = srcs.to(device)            # (B,2,3,H,W)
+            tgt = tgt.to(device)  # (B,3,H,W)
+            srcs = srcs.to(device)  # (B,2,3,H,W)
             B = tgt.shape[0]
             N_src = srcs.shape[1]
 
             optimizer.zero_grad()
 
-            depth_t, pose_vec = model(tgt, srcs)    # depth_t: (B,1,H,W); pose_vec: (B,2,6)
+            depth_t, pose_vec = model(
+                tgt, srcs
+            )  # depth_t: (B,1,H,W); pose_vec: (B,2,6)
 
             # Photometric reconstruction for each source frame
             photometric_terms = []
@@ -581,14 +623,16 @@ def train_sfmlearner(
             K_inv_b = K_inv.expand(B, -1, -1)
 
             for i in range(N_src):
-                src_i = srcs[:, i]          # (B,3,H,W)
-                pose_i = pose_vec[:, i]     # (B,6)
+                src_i = srcs[:, i]  # (B,3,H,W)
+                pose_i = pose_vec[:, i]  # (B,6)
 
                 recon_i = warp_image(src_i, depth_t, pose_i, K_b, K_inv_b)  # (B,3,H,W)
-                photometric_terms.append(photometric_loss(tgt, recon_i))    # (B,1,H,W)
+                photometric_terms.append(photometric_loss(tgt, recon_i))  # (B,1,H,W)
 
             # Combine photometric losses from all sources (average)
-            photometric_combined = torch.stack(photometric_terms, dim=0).mean(0)  # (B,1,H,W)
+            photometric_combined = torch.stack(photometric_terms, dim=0).mean(
+                0
+            )  # (B,1,H,W)
             photometric_loss_val = photometric_combined.mean()
 
             # Smoothness loss on depth
@@ -629,6 +673,7 @@ def train_sfmlearner(
 # ================================================================
 # Inference: depth prediction for a single image
 # ================================================================
+
 
 def colorize_depth(depth: np.ndarray, vmin=None, vmax=None) -> np.ndarray:
     valid = depth > 0
@@ -677,11 +722,16 @@ def run_depth_inference(
     model.eval()
     with torch.no_grad():
         img_t = img_t.to(device)
-        depth_pred, _ = model.depth_net(img_t), None  # or depth_pred, _ = model(img_t, dummy_sources)
+        depth_pred, _ = (
+            model.depth_net(img_t),
+            None,
+        )  # or depth_pred, _ = model(img_t, dummy_sources)
         depth_np = depth_pred.squeeze().cpu().numpy()
 
     depth_color = colorize_depth(depth_np)
-    depth_color_full = cv2.resize(depth_color, (W_orig, H_orig), interpolation=cv2.INTER_NEAREST)
+    depth_color_full = cv2.resize(
+        depth_color, (W_orig, H_orig), interpolation=cv2.INTER_NEAREST
+    )
 
     vis = np.concatenate([img_rgb, depth_color_full], axis=1)
     cv2.imwrite(output, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
@@ -692,29 +742,42 @@ def run_depth_inference(
 # CLI
 # ================================================================
 
+
 def main():
-    parser = argparse.ArgumentParser(description="SfMLearner-style demo (unsupervised depth + pose)")
+    parser = argparse.ArgumentParser(
+        description="SfMLearner-style demo (unsupervised depth + pose)"
+    )
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     # --- Train ---
     p_train = subparsers.add_parser("train", help="Train SfMLearner")
-    p_train.add_argument("--data_root", type=str, required=True,
-                         help="Root of monocular sequences (e.g., data_synth/mono_seq)")
+    p_train.add_argument(
+        "--data_root",
+        type=str,
+        required=True,
+        help="Root of monocular sequences (e.g., data_synth/mono_seq)",
+    )
     p_train.add_argument("--epochs", type=int, default=10)
     p_train.add_argument("--batch_size", type=int, default=4)
     p_train.add_argument("--lr", type=float, default=1e-4)
     p_train.add_argument("--resize_w", type=int, default=192)
     p_train.add_argument("--resize_h", type=int, default=128)
-    p_train.add_argument("--fx", type=float, default=None,
-                         help="Focal length fx (pixels); default 0.8*W")
-    p_train.add_argument("--fy", type=float, default=None,
-                         help="Focal length fy (pixels); default 0.8*H")
+    p_train.add_argument(
+        "--fx", type=float, default=None, help="Focal length fx (pixels); default 0.8*W"
+    )
+    p_train.add_argument(
+        "--fy", type=float, default=None, help="Focal length fy (pixels); default 0.8*H"
+    )
     p_train.add_argument("--output_dir", type=str, default="sfmlearner_runs")
 
     # --- Infer depth ---
-    p_infer = subparsers.add_parser("infer_depth", help="Depth inference using trained model")
+    p_infer = subparsers.add_parser(
+        "infer_depth", help="Depth inference using trained model"
+    )
     p_infer.add_argument("--image", type=str, required=True, help="Path to RGB image")
-    p_infer.add_argument("--model", type=str, required=True, help="Path to sfmlearner.pth")
+    p_infer.add_argument(
+        "--model", type=str, required=True, help="Path to sfmlearner.pth"
+    )
     p_infer.add_argument("--output", type=str, default="sfm_depth_pred.png")
     p_infer.add_argument("--resize_w", type=int, default=192)
     p_infer.add_argument("--resize_h", type=int, default=128)
@@ -745,7 +808,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 """

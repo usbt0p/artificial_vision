@@ -70,9 +70,9 @@ def generate_sequence(
     base_radius = min(width, height) // 20
 
     # Camera x-positions across the sequence
-    cam_positions = np.linspace(-cam_translation_range,
-                                cam_translation_range,
-                                num=seq_len)
+    cam_positions = np.linspace(
+        -cam_translation_range, cam_translation_range, num=seq_len
+    )
 
     print(f"  Generating sequence in {seq_dir} with {seq_len} frames...")
 
@@ -103,16 +103,25 @@ def generate_sequence(
             v_int = int(round(v))
 
             # Skip if off-screen
-            if u_int < -50 or u_int >= width + 50 or v_int < -50 or v_int >= height + 50:
+            if (
+                u_int < -50
+                or u_int >= width + 50
+                or v_int < -50
+                or v_int >= height + 50
+            ):
                 continue
 
             # Depth-dependent radius (optional)
             r = int(base_radius * (min_depth / Zw))
             r = max(3, r)
 
-            cv2.circle(img, (u_int, v_int),
-                       r, color=tuple(int(c) for c in obj_colors[idx].tolist()),
-                       thickness=-1)
+            cv2.circle(
+                img,
+                (u_int, v_int),
+                r,
+                color=tuple(int(c) for c in obj_colors[idx].tolist()),
+                thickness=-1,
+            )
 
         out_path = seq_dir / f"{i:04d}.png"
         cv2.imwrite(str(out_path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
@@ -122,26 +131,36 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate synthetic monocular sequences for SfMLearner."
     )
-    parser.add_argument("--out_root", type=str, default="data_synth/mono_seq",
-                        help="Output root directory for sequences")
-    parser.add_argument("--num_seqs", type=int, default=50,
-                        help="Number of sequences to generate")
-    parser.add_argument("--seq_len", type=int, default=5,
-                        help="Number of frames per sequence")
-    parser.add_argument("--width", type=int, default=192,
-                        help="Image width")
-    parser.add_argument("--height", type=int, default=128,
-                        help="Image height")
-    parser.add_argument("--num_objects", type=int, default=30,
-                        help="Number of objects in each scene")
-    parser.add_argument("--min_depth", type=float, default=1.5,
-                        help="Minimum object depth")
-    parser.add_argument("--max_depth", type=float, default=6.0,
-                        help="Maximum object depth")
-    parser.add_argument("--cam_translation_range", type=float, default=0.5,
-                        help="Camera x-translation range across the sequence")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed base")
+    parser.add_argument(
+        "--out_root",
+        type=str,
+        default="data_synth/mono_seq",
+        help="Output root directory for sequences",
+    )
+    parser.add_argument(
+        "--num_seqs", type=int, default=50, help="Number of sequences to generate"
+    )
+    parser.add_argument(
+        "--seq_len", type=int, default=5, help="Number of frames per sequence"
+    )
+    parser.add_argument("--width", type=int, default=192, help="Image width")
+    parser.add_argument("--height", type=int, default=128, help="Image height")
+    parser.add_argument(
+        "--num_objects", type=int, default=30, help="Number of objects in each scene"
+    )
+    parser.add_argument(
+        "--min_depth", type=float, default=1.5, help="Minimum object depth"
+    )
+    parser.add_argument(
+        "--max_depth", type=float, default=6.0, help="Maximum object depth"
+    )
+    parser.add_argument(
+        "--cam_translation_range",
+        type=float,
+        default=0.5,
+        help="Camera x-translation range across the sequence",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed base")
 
     args = parser.parse_args()
 
