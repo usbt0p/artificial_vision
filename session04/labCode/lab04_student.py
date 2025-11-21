@@ -21,6 +21,7 @@ from prettytable import PrettyTable
 import warnings
 import ablation
 import losses
+import random
 import UNet
 import sys
 import os
@@ -258,11 +259,17 @@ def get_dataloaders(config: dict):
 
     trainSize = int(0.8 * len(dataset))
     valSize = len(dataset) - trainSize
-    trainDataset, valDataset = random_split(dataset, [trainSize, valSize])
+    trainDataset, valDataset = random_split(
+        dataset, [trainSize, valSize], generator=config.get("generator")
+    )
 
     # Create data loaders
     trainLoader = DataLoader(
-        trainDataset, batch_size=config["batch_size"], shuffle=True, num_workers=2
+        trainDataset,
+        batch_size=config["batch_size"],
+        shuffle=True,
+        num_workers=2,
+        generator=config.get("generator"),
     )
     valLoader = DataLoader(
         valDataset, batch_size=config["batch_size"], shuffle=False, num_workers=2
@@ -281,6 +288,7 @@ def main(
     image_size: int = 128,
     skip_mode: str = "concat",
     storeData: bool = True,
+    generator=None,
 ):
     # Hyperparameters
     config = {
@@ -289,6 +297,7 @@ def main(
         "epochs": epochs,
         "image_size": image_size,
         "skip_mode": skip_mode,  # Try: 'concat', 'add', 'attention'
+        "generator": generator,
     }
     # Get data loaders
     trainLoader, valLoader = get_dataloaders(config)
@@ -472,17 +481,25 @@ def analyze_skip_connections():
 
     results = {}
 
+    # Set the seed for reproducibility
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
+    generator = torch.Generator().manual_seed(42)
+
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
         "epochs": 50,
         "image_size": 128,
+        "generator": generator,
     }
 
     models = {}
 
     # Run experiments for each mode
-    for mode in ["concat", "add", "attention"]:
+    for mode in ["concat", "add", "attention", "none"]:
         results[mode] = main(skip_mode=mode, **config)
         models[mode] = UNet.UNet(in_channels=3, out_channels=3, skipMode=mode).to(
             device

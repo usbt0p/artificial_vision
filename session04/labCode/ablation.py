@@ -52,7 +52,9 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
             np.random.seed(seed)
             random.seed(seed)
 
-            data = lab04_student.main(skip_mode=v, **config)
+            generator = torch.Generator().manual_seed(seed)
+
+            data = lab04_student.main(skip_mode=v, generator=generator, **config)
 
             # Save data to json
             with open(os.path.join(dataFolder, f"{v}_{seed}.json"), "w") as outfile:
