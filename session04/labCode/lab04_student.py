@@ -317,7 +317,10 @@ def main(
         and storeData
     ):
         model = UNet.UNet(
-            in_channels=3, out_channels=3, skipMode=config["skip_mode"], features=features
+            in_channels=3,
+            out_channels=3,
+            skipMode=config["skip_mode"],
+            features=features,
         ).to(device)
         model.load_state_dict(
             torch.load(
@@ -347,7 +350,10 @@ def main(
 
     else:
         model = UNet.UNet(
-            in_channels=3, out_channels=3, skipMode=config["skip_mode"], features=features
+            in_channels=3,
+            out_channels=3,
+            skipMode=config["skip_mode"],
+            features=features,
         ).to(device)
 
         # Setup optimizer
