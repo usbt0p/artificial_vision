@@ -308,7 +308,9 @@ def main(
     if features == [64, 128, 256, 512]:
         folder_name = config["skip_mode"]
     else:
-        folder_name = f"{config['skip_mode']}_features_bigger"
+        # Create descriptive name with features info
+        features_str = "bigger"
+        folder_name = f"{config['skip_mode']}_features_{features_str}"
 
     config["folder_name"] = folder_name
     os.makedirs(os.path.join(currentDirectory, folder_name), exist_ok=True)
@@ -518,7 +520,7 @@ def analyze_skip_connections(features: list = [64, 128, 256, 512]):
         if config["features"] == [64, 128, 256, 512]:
             folder_name = mode
         else:
-            features_str = "_".join(map(str, config["features"]))
+            features_str = "bigger"
             folder_name = f"{mode}_features_{features_str}"
 
         models[mode] = UNet.UNet(
