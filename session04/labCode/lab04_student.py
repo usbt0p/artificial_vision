@@ -507,7 +507,7 @@ def analyze_skip_connections(features: list = [64, 128, 256, 512]):
         "epochs": 1,
         "image_size": 128,
         "generator": generator,
-        "features": [64, 128, 256, 512],
+        "features": features,
     }
 
     models = {}
