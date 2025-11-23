@@ -73,10 +73,20 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
             variant = file.split("_")[0]
 
             if variant in variants:
-                with open(os.path.join(dataFolder, file), "r") as infile:
-                    runData = json.load(infile)
+                try:
+                    with open(os.path.join(dataFolder, file), "r") as infile:
+                        runData = json.load(infile)
+                    data[variant].append(runData)
+                except (json.JSONDecodeError, FileNotFoundError) as e:
+                    print(f"Warning: Could not load {file}: {e}")
+                    continue
 
-                data[variant].append(runData)
+        # Check if we have any data to plot
+        if not any(data.values()):
+            print(
+                "No valid data found to create graphs. Please run with addNew=True first."
+            )
+            return
 
         # Create a box plot for training_time
         plt.figure(figsize=(10, 6))
@@ -264,10 +274,20 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> None:
             variant = file.split("_")[0]
 
             if variant in variants:
-                with open(os.path.join(dataFolder, file), "r") as infile:
-                    runData = json.load(infile)
+                try:
+                    with open(os.path.join(dataFolder, file), "r") as infile:
+                        runData = json.load(infile)
+                    data[variant].append(runData)
+                except (json.JSONDecodeError, FileNotFoundError) as e:
+                    print(f"Warning: Could not load {file}: {e}")
+                    continue
 
-                data[variant].append(runData)
+        # Check if we have any data to plot
+        if not any(data.values()):
+            print(
+                "No valid data found to create graphs. Please run with addNew=True first."
+            )
+            return
 
         # Create a box plot for training_time
         plt.figure(figsize=(10, 6))
