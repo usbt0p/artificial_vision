@@ -504,7 +504,7 @@ def analyze_skip_connections(features: list = [64, 128, 256, 512]):
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
-        "epochs": 1,
+        "epochs": 50,
         "image_size": 128,
         "generator": generator,
         "features": features,
@@ -578,8 +578,8 @@ if __name__ == "__main__":
     # main()
 
     # Run analysis (optional)
-    # ablation_study()
-    # analyze_skip_connections()
+    ablation_study()
+    analyze_skip_connections()
     analyze_skip_connections(features=[64, 64, 128, 128, 256, 256, 512, 512])
 
     plt.show()
