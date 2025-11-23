@@ -303,7 +303,15 @@ def main(
     # Get data loaders
     trainLoader, valLoader = get_dataloaders(config)
 
-    os.makedirs(os.path.join(currentDirectory, config["skip_mode"]), exist_ok=True)
+    # Create folder name based on skip_mode and features
+    # If features is default [64, 128, 256, 512], use simple name for backward compatibility
+    if features == [64, 128, 256, 512]:
+        folder_name = config["skip_mode"]
+    else:
+        folder_name = f"{config['skip_mode']}_features_bigger"
+
+    config["folder_name"] = folder_name
+    os.makedirs(os.path.join(currentDirectory, folder_name), exist_ok=True)
 
     # Setup loss
     criterion = losses.CombinedLoss()
@@ -312,7 +320,7 @@ def main(
     # if we have best_unet_model.pth use it instead training:
     if (
         os.path.exists(
-            os.path.join(currentDirectory, config["skip_mode"], "best_unet_model.pth")
+            os.path.join(currentDirectory, folder_name, "best_unet_model.pth")
         )
         and storeData
     ):
@@ -324,26 +332,24 @@ def main(
         ).to(device)
         model.load_state_dict(
             torch.load(
-                os.path.join(
-                    currentDirectory, config["skip_mode"], "best_unet_model.pth"
-                ),
+                os.path.join(currentDirectory, folder_name, "best_unet_model.pth"),
                 map_location=device,
             )
         )
         if os.path.exists(
-            os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy")
+            os.path.join(currentDirectory, folder_name, "train_losses.npy")
         ):
             train_losses = np.load(
-                os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy")
+                os.path.join(currentDirectory, folder_name, "train_losses.npy")
             )
             val_losses = np.load(
-                os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy")
+                os.path.join(currentDirectory, folder_name, "val_losses.npy")
             )
             train_ious = np.load(
-                os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy")
+                os.path.join(currentDirectory, folder_name, "train_ious.npy")
             )
             val_ious = np.load(
-                os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy")
+                os.path.join(currentDirectory, folder_name, "val_ious.npy")
             )
 
         training_time = 0
@@ -395,9 +401,7 @@ def main(
                 best_iou = val_iou
                 torch.save(
                     model.state_dict(),
-                    os.path.join(
-                        currentDirectory, config["skip_mode"], "best_unet_model.pth"
-                    ),
+                    os.path.join(currentDirectory, folder_name, "best_unet_model.pth"),
                 )
                 print("Best model saved!")
 
@@ -412,19 +416,19 @@ def main(
 
         if storeData:
             np.save(
-                os.path.join(currentDirectory, config["skip_mode"], "train_losses.npy"),
+                os.path.join(currentDirectory, folder_name, "train_losses.npy"),
                 np.array(train_losses),
             )
             np.save(
-                os.path.join(currentDirectory, config["skip_mode"], "val_losses.npy"),
+                os.path.join(currentDirectory, folder_name, "val_losses.npy"),
                 np.array(val_losses),
             )
             np.save(
-                os.path.join(currentDirectory, config["skip_mode"], "train_ious.npy"),
+                os.path.join(currentDirectory, folder_name, "train_ious.npy"),
                 np.array(train_ious),
             )
             np.save(
-                os.path.join(currentDirectory, config["skip_mode"], "val_ious.npy"),
+                os.path.join(currentDirectory, folder_name, "val_ious.npy"),
                 np.array(val_ious),
             )
 
@@ -478,7 +482,7 @@ def main(
 # ================== Analysis Functions ==================
 
 
-def analyze_skip_connections():
+def analyze_skip_connections(features: list = [64, 128, 256, 512]):
     """Compare different skip connection strategies"""
     # Task 2.4: Implement comparison
     # 1. Train models with different skip modes
@@ -498,9 +502,10 @@ def analyze_skip_connections():
     config = {
         "batch_size": 16,
         "learning_rate": 0.001,
-        "epochs": 50,
+        "epochs": 1,
         "image_size": 128,
         "generator": generator,
+        "features": [64, 128, 256, 512],
     }
 
     models = {}
@@ -508,12 +513,20 @@ def analyze_skip_connections():
     # Run experiments for each mode
     for mode in ["concat", "add", "attention", "none"]:
         results[mode] = main(skip_mode=mode, **config)
-        models[mode] = UNet.UNet(in_channels=3, out_channels=3, skipMode=mode).to(
-            device
-        )
+
+        # Determine folder name for loading model
+        if config["features"] == [64, 128, 256, 512]:
+            folder_name = mode
+        else:
+            features_str = "_".join(map(str, config["features"]))
+            folder_name = f"{mode}_features_{features_str}"
+
+        models[mode] = UNet.UNet(
+            in_channels=3, out_channels=3, skipMode=mode, features=config["features"]
+        ).to(device)
         models[mode].load_state_dict(
             torch.load(
-                os.path.join(currentDirectory, mode, "best_unet_model.pth"),
+                os.path.join(currentDirectory, folder_name, "best_unet_model.pth"),
                 map_location=device,
             )
         )
@@ -563,7 +576,8 @@ if __name__ == "__main__":
     # main()
 
     # Run analysis (optional)
-    ablation_study()
-    analyze_skip_connections()
+    # ablation_study()
+    # analyze_skip_connections()
+    analyze_skip_connections(features=[64, 64, 128, 128, 256, 256, 512, 512])
 
     plt.show()
