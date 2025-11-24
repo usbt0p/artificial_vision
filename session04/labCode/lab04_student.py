@@ -507,32 +507,39 @@ def analyze_skip_connections(features: list = [64, 128, 256, 512]):
         "epochs": 50,
         "image_size": 128,
         "generator": generator,
-        "features": features,
     }
 
     models = {}
 
     # Run experiments for each mode
     for mode in ["concat", "add", "attention", "none"]:
-        results[mode] = main(skip_mode=mode, **config)
+        for f in [[64, 128, 256, 512], [64, 64, 128, 128, 256, 256, 512, 512]]:
+            results[mode] = main(skip_mode=mode, **config, features=f)
 
-        # Determine folder name for loading model
-        if config["features"] == [64, 128, 256, 512]:
-            folder_name = mode
-        else:
-            features_str = "bigger"
-            folder_name = f"{mode}_features_{features_str}"
+            name = mode
 
-        models[mode] = UNet.UNet(
-            in_channels=3, out_channels=3, skipMode=mode, features=config["features"]
-        ).to(device)
-        models[mode].load_state_dict(
-            torch.load(
-                os.path.join(currentDirectory, folder_name, "best_unet_model.pth"),
-                map_location=device,
+            # Determine folder name for loading model
+            if f == [64, 128, 256, 512]:
+                folder_name = mode
+            else:
+                features_str = "bigger"
+                name += " Bigger"
+                folder_name = f"{mode}_features_{features_str}"
+
+            models[name] = UNet.UNet(
+                in_channels=3,
+                out_channels=3,
+                skipMode=mode,
+                features=f,
+            ).to(device)
+            models[name].load_state_dict(
+                torch.load(
+                    os.path.join(currentDirectory, folder_name, "best_unet_model.pth"),
+                    map_location=device,
+                )
             )
-        )
-        print(f"Loaded model for skip mode: {mode}")
+            print(f"Loaded model for skip mode: {name}")
+
     # Create comparison table/plot
     table = PrettyTable()
     table.field_names = [
@@ -580,6 +587,5 @@ if __name__ == "__main__":
     # Run analysis (optional)
     ablation_study()
     analyze_skip_connections()
-    analyze_skip_connections(features=[64, 64, 128, 128, 256, 256, 512, 512])
 
     plt.show()
