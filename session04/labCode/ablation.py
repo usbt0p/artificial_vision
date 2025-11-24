@@ -9,7 +9,7 @@ import os
 currentDirectory = os.path.dirname(os.path.abspath(__file__))
 
 
-def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
+def ablationSkipConnections(addNew: bool, createGraph: bool) -> dict:
     """
     Function to run ablation study on different skip connection variants.
 
@@ -20,7 +20,7 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
         - createGraph (bool): Whether to create graphs from the results.
 
     Returns:
-        - None
+        - dict: Collected data from the experiments if createGraph is True, else None.
     """
     dataFolder = os.path.join(currentDirectory, "ablation", "skipConnections")
 
@@ -88,27 +88,6 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
             )
             return
 
-        # Create a box plot for training_time
-        plt.figure(figsize=(10, 6))
-        training_times = [[run["training_time"] for run in data[v]] for v in variants]
-        plt.boxplot(training_times, labels=variants)
-        plt.title("Training Time by Skip Connection Variant")
-        plt.ylabel("Training Time (seconds)")
-
-        # Create a box plot for avg_gradient
-        plt.figure(figsize=(10, 6))
-        avg_gradients = [[run["avg_gradient"] for run in data[v]] for v in variants]
-        plt.boxplot(avg_gradients, labels=variants)
-        plt.title("Average Gradient by Skip Connection Variant")
-        plt.ylabel("Average Gradient")
-
-        # Create a box plot for memory_usage
-        plt.figure(figsize=(10, 6))
-        memory_usages = [[run["memory_usage"] for run in data[v]] for v in variants]
-        plt.boxplot(memory_usages, labels=variants)
-        plt.title("Memory Usage by Skip Connection Variant")
-        plt.ylabel("Memory Usage (MB)")
-
         # Show the average train_losses and val_losses - one figure with 4 subplots
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         axes = axes.flatten()
@@ -209,8 +188,10 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> None:
         )
         plt.tight_layout()
 
+        return data
 
-def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> None:
+
+def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> dict:
     """
     Function to run ablation study on different skip connection variants.
 
@@ -221,7 +202,7 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> None:
         - createGraph (bool): Whether to create graphs from the results.
 
     Returns:
-        - None
+        - dict: Collected data from the experiments if createGraph is True, else None.
     """
     dataFolder = os.path.join(currentDirectory, "ablation", "skipConnectionsBigger")
 
@@ -289,27 +270,6 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> None:
             )
             return
 
-        # Create a box plot for training_time
-        plt.figure(figsize=(10, 6))
-        training_times = [[run["training_time"] for run in data[v]] for v in variants]
-        plt.boxplot(training_times, labels=variants)
-        plt.title("Training Time by Skip Connection Variant")
-        plt.ylabel("Training Time (seconds)")
-
-        # Create a box plot for avg_gradient
-        plt.figure(figsize=(10, 6))
-        avg_gradients = [[run["avg_gradient"] for run in data[v]] for v in variants]
-        plt.boxplot(avg_gradients, labels=variants)
-        plt.title("Average Gradient by Skip Connection Variant")
-        plt.ylabel("Average Gradient")
-
-        # Create a box plot for memory_usage
-        plt.figure(figsize=(10, 6))
-        memory_usages = [[run["memory_usage"] for run in data[v]] for v in variants]
-        plt.boxplot(memory_usages, labels=variants)
-        plt.title("Memory Usage by Skip Connection Variant")
-        plt.ylabel("Memory Usage (MB)")
-
         # Show the average train_losses and val_losses - one figure with 4 subplots
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         axes = axes.flatten()
@@ -410,6 +370,44 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> None:
         )
         plt.tight_layout()
 
+        return data
+
+
+def oneSeedEpochGraph(data: dict) -> None:
+    """
+    Create box plots for training_time, avg_gradient, and memory_usage
+    for different skip connection variants.
+
+    Args:
+        - data (dict): Collected data from the experiments.
+
+    Returns:
+        - None
+    """
+    variants = list(data.keys())
+    legendVars = [v.title() for v in variants]
+
+    # Create a box plot for training_time
+    plt.figure(figsize=(10, 6))
+    training_times = [[run["training_time"] for run in data[v]] for v in variants]
+    plt.boxplot(training_times, labels=legendVars)
+    plt.title("Training Time by Skip Connection Variant")
+    plt.ylabel("Training Time (seconds)")
+
+    # Create a box plot for avg_gradient
+    plt.figure(figsize=(10, 6))
+    avg_gradients = [[run["avg_gradient"] for run in data[v]] for v in variants]
+    plt.boxplot(avg_gradients, labels=legendVars)
+    plt.title("Average Gradient by Skip Connection Variant")
+    plt.ylabel("Average Gradient")
+
+    # Create a box plot for memory_usage
+    plt.figure(figsize=(10, 6))
+    memory_usages = [[run["memory_usage"] for run in data[v]] for v in variants]
+    plt.boxplot(memory_usages, labels=legendVars)
+    plt.title("Memory Usage by Skip Connection Variant")
+    plt.ylabel("Memory Usage (MB)")
+
 
 def main(addNew: bool = False, createGraph: bool = True) -> None:
     """
@@ -422,13 +420,16 @@ def main(addNew: bool = False, createGraph: bool = True) -> None:
     Returns:
         - None
     """
-    ablationSkipConnections(addNew, createGraph)
-    ablationSkipConnectionsBigger(addNew, createGraph)
+    data = ablationSkipConnections(addNew, createGraph)
+    dataBigger = ablationSkipConnectionsBigger(addNew, createGraph)
+
+    if createGraph:
+        for variant in dataBigger.keys():
+            data[f"{variant} Bigger"] = dataBigger[variant]
+
+        oneSeedEpochGraph(data)
 
 
 if __name__ == "__main__":
     while True:
-        ablationSkipConnectionsBigger(addNew=True, createGraph=False)
-        ablationSkipConnectionsBigger(addNew=True, createGraph=False)
-        ablationSkipConnectionsBigger(addNew=True, createGraph=False)
-        ablationSkipConnections(addNew=True, createGraph=False)
+        main(addNew=True, createGraph=False)
