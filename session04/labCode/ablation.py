@@ -7,6 +7,47 @@ import json
 import os
 
 currentDirectory = os.path.dirname(os.path.abspath(__file__))
+graphFolder = os.path.join(currentDirectory, "graphs")
+
+# Make sure the graph folder exists
+os.makedirs(graphFolder, exist_ok=True)
+
+
+def plotIndividually(
+    blueAll, orangeAll, avgBlue, avgOrange, title, xlabel, ylabel, saveName
+):
+    """
+    Helper function to plot individual figures for training and validation metrics.
+
+    It won't show the plot but will save it directly to the specified file.
+
+    Args:
+        - blueAll (list): List of all blue metric runs (e.g., training).
+        - orangeAll (list): List of all orange metric runs (e.g., validation).
+        - avgBlue (list): Average of blue metric across runs.
+        - avgOrange (list): Average of orange metric across runs.
+        - title (str): Title of the plot.
+        - xlabel (str): Label for the x-axis.
+        - ylabel (str): Label for the y-axis.
+        - saveName (str): Name of the file to save the figure.
+    """
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111)
+
+    # Replot on individual figure
+    for i, values in enumerate(blueAll):
+        ax.plot(values, color="blue", alpha=0.2, linewidth=0.8)
+    for i, values in enumerate(orangeAll):
+        ax.plot(values, color="orange", alpha=0.2, linewidth=0.8)
+    ax.plot(avgBlue, label=f"Avg Train", color="blue", linewidth=2)
+    ax.plot(avgOrange, label=f"Avg Val", color="orange", linewidth=2)
+    ax.set_title(title, fontsize=12, fontweight="bold")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.savefig(os.path.join(graphFolder, saveName))
+    plt.close(fig)
 
 
 def ablationSkipConnections(addNew: bool, createGraph: bool) -> dict:
@@ -133,12 +174,27 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> dict:
             ax.legend()
             ax.grid(True, alpha=0.3)
 
+            # Save each subplot as an individual image
+            plotIndividually(
+                allTrainLosses,
+                allValLosses,
+                avgTrainLosses,
+                avgValLosses,
+                title=f"{v.capitalize()} Variant",
+                xlabel="Epochs",
+                ylabel="Loss",
+                saveName=f"Variant{v}Loss.png",
+            )
+
         fig.suptitle(
             "Training and Validation Loss - Skip Connection Variants",
             fontsize=16,
             fontweight="bold",
         )
         plt.tight_layout()
+
+        # Save the combined figure
+        fig.savefig(os.path.join(graphFolder, "SkipConnectionVariantsLoss.png"))
 
         # Show the average train_ious and val_ious - one figure with 4 subplots
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
@@ -181,12 +237,27 @@ def ablationSkipConnections(addNew: bool, createGraph: bool) -> dict:
             ax.legend()
             ax.grid(True, alpha=0.3)
 
+            # Save each subplot as an individual image
+            plotIndividually(
+                allTrainIous,
+                allValIous,
+                avgTrainIous,
+                avgValIous,
+                title=f"{v.capitalize()} Variant",
+                xlabel="Epochs",
+                ylabel="IoU",
+                saveName=f"Variant{v}IoU.png",
+            )
+
         fig.suptitle(
             "Training and Validation IoU - Skip Connection Variants",
             fontsize=16,
             fontweight="bold",
         )
         plt.tight_layout()
+
+        # Save the combined figure
+        fig.savefig(os.path.join(graphFolder, "SkipConnectionVariantsIoU.png"))
 
         return data
 
@@ -315,12 +386,27 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> dict:
             ax.legend()
             ax.grid(True, alpha=0.3)
 
+            # Save each subplot as an individual image
+            plotIndividually(
+                allTrainLosses,
+                allValLosses,
+                avgTrainLosses,
+                avgValLosses,
+                title=f"{v.capitalize()} Variant",
+                xlabel="Epochs",
+                ylabel="Loss",
+                saveName=f"Variant{v}LossBigger.png",
+            )
+
         fig.suptitle(
-            "Training and Validation Loss - Skip Connection Variants",
+            "Training and Validation Loss (Bigger) - Skip Connection Variants",
             fontsize=16,
             fontweight="bold",
         )
         plt.tight_layout()
+
+        # Save the combined figure
+        fig.savefig(os.path.join(graphFolder, "SkipConnectionVariantsLossBigger.png"))
 
         # Show the average train_ious and val_ious - one figure with 4 subplots
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
@@ -363,12 +449,27 @@ def ablationSkipConnectionsBigger(addNew: bool, createGraph: bool) -> dict:
             ax.legend()
             ax.grid(True, alpha=0.3)
 
+            # Save each subplot as an individual image
+            plotIndividually(
+                allTrainIous,
+                allValIous,
+                avgTrainIous,
+                avgValIous,
+                title=f"{v.capitalize()} Variant",
+                xlabel="Epochs",
+                ylabel="IoU",
+                saveName=f"Variant{v}IoUBigger.png",
+            )
+
         fig.suptitle(
-            "Training and Validation IoU - Skip Connection Variants",
+            "Training and Validation IoU (Bigger) - Skip Connection Variants",
             fontsize=16,
             fontweight="bold",
         )
         plt.tight_layout()
+
+        # Save the combined figure
+        fig.savefig(os.path.join(graphFolder, "SkipConnectionVariantsIoUBigger.png"))
 
         return data
 
@@ -393,6 +494,8 @@ def oneSeedEpochGraph(data: dict) -> None:
     plt.boxplot(training_times, labels=legendVars)
     plt.title("Training Time by Skip Connection Variant")
     plt.ylabel("Training Time (seconds)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(graphFolder, "TrainingTime.png"))
 
     # Create a box plot for avg_gradient
     plt.figure(figsize=(10, 6))
@@ -400,6 +503,8 @@ def oneSeedEpochGraph(data: dict) -> None:
     plt.boxplot(avg_gradients, labels=legendVars)
     plt.title("Average Gradient by Skip Connection Variant")
     plt.ylabel("Average Gradient")
+    plt.tight_layout()
+    plt.savefig(os.path.join(graphFolder, "AvgGradient.png"))
 
     # Create a box plot for memory_usage
     plt.figure(figsize=(10, 6))
@@ -407,6 +512,8 @@ def oneSeedEpochGraph(data: dict) -> None:
     plt.boxplot(memory_usages, labels=legendVars)
     plt.title("Memory Usage by Skip Connection Variant")
     plt.ylabel("Memory Usage (MB)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(graphFolder, "MemoryUsage.png"))
 
 
 def main(addNew: bool = False, createGraph: bool = True) -> None:
