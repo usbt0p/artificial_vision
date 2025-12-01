@@ -40,6 +40,7 @@ if torch.cuda.is_available():
 # T-Net: Spatial Transformation Network
 # ============================================================================
 
+
 class TNet(nn.Module):
     """
     Transformation network that learns a canonical alignment.
@@ -47,6 +48,7 @@ class TNet(nn.Module):
     For k=3: input coordinates (3xN) -> 3x3 matrix.
     For k=64: feature vectors (64xN) -> 64x64 matrix.
     """
+
     def __init__(self, k=3):
         super(TNet, self).__init__()
         self.k = k
@@ -101,6 +103,7 @@ class TNet(nn.Module):
 # PointNet Classification Model
 # ============================================================================
 
+
 class PointNet(nn.Module):
     """
     PointNet architecture for 3D shape classification (synthetic data).
@@ -113,6 +116,7 @@ class PointNet(nn.Module):
     5. Global max-pooling for permutation invariance.
     6. FC head for classification.
     """
+
     def __init__(self, num_classes=5, dropout=0.3):
         super(PointNet, self).__init__()
 
@@ -159,30 +163,30 @@ class PointNet(nn.Module):
         x = x.transpose(2, 1)
 
         # Input transform
-        trans = self.input_transform(x)           # [B, 3, 3]
-        x = torch.bmm(trans, x)                  # apply transform to [B, 3, N]
+        trans = self.input_transform(x)  # [B, 3, 3]
+        x = torch.bmm(trans, x)  # apply transform to [B, 3, N]
 
         # Shared MLP (3 -> 64 -> 64)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
 
         # Feature transform
-        trans_feat = self.feature_transform(x)   # [B, 64, 64]
+        trans_feat = self.feature_transform(x)  # [B, 64, 64]
         x = torch.bmm(trans_feat, x)
 
         # Further feature extraction
         x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.bn4(self.conv4(x)))      # [B, 1024, N]
+        x = F.relu(self.bn4(self.conv4(x)))  # [B, 1024, N]
 
         # Global max-pooling over points
-        x = torch.max(x, 2, keepdim=False)[0]    # [B, 1024]
+        x = torch.max(x, 2, keepdim=False)[0]  # [B, 1024]
 
         # Classification head
         x = F.relu(self.bn5(self.fc1(x)))
         x = self.dropout(x)
         x = F.relu(self.bn6(self.fc2(x)))
         x = self.dropout(x)
-        x = self.fc3(x)                          # [B, num_classes]
+        x = self.fc3(x)  # [B, num_classes]
 
         return x, trans_feat
 
@@ -190,6 +194,7 @@ class PointNet(nn.Module):
 # ============================================================================
 # Regularization Loss for Feature Transform
 # ============================================================================
+
 
 def feature_transform_regularizer(trans):
     """
@@ -209,6 +214,7 @@ def feature_transform_regularizer(trans):
 # Synthetic Point Cloud Dataset (5 classes)
 # ============================================================================
 
+
 class SyntheticPointCloudDataset(Dataset):
     """
     Synthetic dataset for 3D point cloud classification.
@@ -219,7 +225,7 @@ class SyntheticPointCloudDataset(Dataset):
     This is purely for demonstration of PointNet training dynamics.
     """
 
-    def __init__(self, num_points=1024, num_samples=2000, num_classes=5, split='train'):
+    def __init__(self, num_points=1024, num_samples=2000, num_classes=5, split="train"):
         self.num_points = num_points
         self.num_samples = num_samples
         self.num_classes = num_classes
@@ -263,16 +269,16 @@ class SyntheticPointCloudDataset(Dataset):
         points = np.stack([x, y, z], axis=1).astype(np.float32)
 
         # Add small noise (train only)
-        if self.split == 'train':
+        if self.split == "train":
             points += np.random.normal(0, 0.02, points.shape).astype(np.float32)
 
         # Random rotation augmentation (train only)
-        if self.split == 'train':
+        if self.split == "train":
             angle = np.random.uniform(0, 2 * np.pi)
             cos_a, sin_a = np.cos(angle), np.sin(angle)
-            R = np.array([[cos_a, -sin_a, 0],
-                          [sin_a,  cos_a, 0],
-                          [0,      0,     1]], dtype=np.float32)
+            R = np.array(
+                [[cos_a, -sin_a, 0], [sin_a, cos_a, 0], [0, 0, 1]], dtype=np.float32
+            )
             points = points @ R.T
 
         return points, class_id
@@ -282,16 +288,17 @@ class SyntheticPointCloudDataset(Dataset):
 # Training and Evaluation Functions
 # ============================================================================
 
+
 def train_epoch(model, dataloader, optimizer, criterion, device, reg_weight=0.001):
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
 
-    pbar = tqdm(dataloader, desc='Training', leave=False)
+    pbar = tqdm(dataloader, desc="Training", leave=False)
     for points, labels in pbar:
-        points = points.to(device)    # [B, N, 3]
-        labels = labels.to(device)    # [B]
+        points = points.to(device)  # [B, N, 3]
+        labels = labels.to(device)  # [B]
 
         optimizer.zero_grad()
 
@@ -308,15 +315,17 @@ def train_epoch(model, dataloader, optimizer, criterion, device, reg_weight=0.00
         total += labels.size(0)
         correct += preds.eq(labels).sum().item()
 
-        pbar.set_postfix({
-            'loss': f'{running_loss / (pbar.n + 1):.3f}',
-            'acc': f'{100.0 * correct / total:.1f}%'
-        })
+        pbar.set_postfix(
+            {
+                "loss": f"{running_loss / (pbar.n + 1):.3f}",
+                "acc": f"{100.0 * correct / total:.1f}%",
+            }
+        )
 
     return running_loss / len(dataloader), 100.0 * correct / total
 
 
-def evaluate(model, dataloader, criterion, device, desc='Evaluating'):
+def evaluate(model, dataloader, criterion, device, desc="Evaluating"):
     model.eval()
     running_loss = 0.0
     correct = 0
@@ -336,10 +345,12 @@ def evaluate(model, dataloader, criterion, device, desc='Evaluating'):
             total += labels.size(0)
             correct += preds.eq(labels).sum().item()
 
-            pbar.set_postfix({
-                'loss': f'{running_loss / (pbar.n + 1):.3f}',
-                'acc': f'{100.0 * correct / total:.1f}%'
-            })
+            pbar.set_postfix(
+                {
+                    "loss": f"{running_loss / (pbar.n + 1):.3f}",
+                    "acc": f"{100.0 * correct / total:.1f}%",
+                }
+            )
 
     return running_loss / len(dataloader), 100.0 * correct / total
 
@@ -348,122 +359,132 @@ def evaluate(model, dataloader, criterion, device, desc='Evaluating'):
 # Main Training Script
 # ============================================================================
 
+
 def main(args):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('=' * 80)
-    print('PointNet Demo for 3D Shape Classification (Synthetic Dataset)')
-    print('Lecture 11: 3D Scene Understanding and Neural Rendering')
-    print('=' * 80)
-    print(f'Using device: {device}\n')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("=" * 80)
+    print("PointNet Demo for 3D Shape Classification (Synthetic Dataset)")
+    print("Lecture 11: 3D Scene Understanding and Neural Rendering")
+    print("=" * 80)
+    print(f"Using device: {device}\n")
 
     # Datasets
-    print('Creating synthetic datasets...')
+    print("Creating synthetic datasets...")
     train_dataset = SyntheticPointCloudDataset(
         num_points=args.num_points,
         num_samples=args.num_train,
         num_classes=args.num_classes,
-        split='train'
+        split="train",
     )
     val_dataset = SyntheticPointCloudDataset(
         num_points=args.num_points,
         num_samples=args.num_val,
         num_classes=args.num_classes,
-        split='val'
+        split="val",
     )
     test_dataset = SyntheticPointCloudDataset(
         num_points=args.num_points,
         num_samples=args.num_test,
         num_classes=args.num_classes,
-        split='test'
+        split="test",
     )
 
-    print(f'  Train samples: {len(train_dataset)}')
-    print(f'  Val   samples: {len(val_dataset)}')
-    print(f'  Test  samples: {len(test_dataset)}\n')
+    print(f"  Train samples: {len(train_dataset)}")
+    print(f"  Val   samples: {len(val_dataset)}")
+    print(f"  Test  samples: {len(test_dataset)}\n")
 
     # DataLoaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=0  # safer for student laptops / Windows
+        num_workers=0,  # safer for student laptops / Windows
     )
     val_loader = DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=0
+        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
     )
     test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=0
+        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
     )
 
     # Model
     model = PointNet(num_classes=args.num_classes, dropout=args.dropout).to(device)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f'Model has {num_params:,} trainable parameters.\n')
+    print(f"Model has {num_params:,} trainable parameters.\n")
 
     # Loss / optimizer / scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.Adam(
+        model.parameters(), lr=args.lr, weight_decay=args.weight_decay
+    )
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
     best_val_acc = 0.0
 
-    print('Training...')
+    print("Training...")
     for epoch in range(args.epochs):
-        print(f'\nEpoch [{epoch + 1}/{args.epochs}]')
-        train_loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device)
-        val_loss, val_acc = evaluate(model, val_loader, criterion, device, desc='Validation')
+        print(f"\nEpoch [{epoch + 1}/{args.epochs}]")
+        train_loss, train_acc = train_epoch(
+            model, train_loader, optimizer, criterion, device
+        )
+        val_loss, val_acc = evaluate(
+            model, val_loader, criterion, device, desc="Validation"
+        )
 
-        print(f'  Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%')
-        print(f'  Val   Loss: {val_loss:.3f}, Val   Acc: {val_acc:.2f}%')
+        print(f"  Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%")
+        print(f"  Val   Loss: {val_loss:.3f}, Val   Acc: {val_acc:.2f}%")
 
         scheduler.step()
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), 'pointnet_synthetic_best.pth')
-            print(f'  Saved best model (val acc: {val_acc:.2f}%)')
+            torch.save(model.state_dict(), "pointnet_synthetic_best.pth")
+            print(f"  Saved best model (val acc: {val_acc:.2f}%)")
 
-    print(f'\nTraining complete. Best validation accuracy: {best_val_acc:.2f}%')
+    print(f"\nTraining complete. Best validation accuracy: {best_val_acc:.2f}%")
 
     # Test evaluation
-    print('\nEvaluating on test set (best model)...')
-    model.load_state_dict(torch.load('pointnet_synthetic_best.pth', map_location=device))
-    test_loss, test_acc = evaluate(model, test_loader, criterion, device, desc='Test')
-    print(f'Test Loss: {test_loss:.3f}, Test Acc: {test_acc:.2f}%')
+    print("\nEvaluating on test set (best model)...")
+    model.load_state_dict(
+        torch.load("pointnet_synthetic_best.pth", map_location=device)
+    )
+    test_loss, test_acc = evaluate(model, test_loader, criterion, device, desc="Test")
+    print(f"Test Loss: {test_loss:.3f}, Test Acc: {test_acc:.2f}%")
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='PointNet Synthetic Demo')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="PointNet Synthetic Demo")
 
     # Dataset parameters
-    parser.add_argument('--num_points', type=int, default=1024,
-                        help='Number of points per point cloud')
-    parser.add_argument('--num_classes', type=int, default=5,
-                        help='Number of synthetic classes (fixed at 5 in this demo)')
-    parser.add_argument('--num_train', type=int, default=2000,
-                        help='Number of training samples')
-    parser.add_argument('--num_val', type=int, default=500,
-                        help='Number of validation samples')
-    parser.add_argument('--num_test', type=int, default=500,
-                        help='Number of test samples')
+    parser.add_argument(
+        "--num_points", type=int, default=1024, help="Number of points per point cloud"
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=5,
+        help="Number of synthetic classes (fixed at 5 in this demo)",
+    )
+    parser.add_argument(
+        "--num_train", type=int, default=2000, help="Number of training samples"
+    )
+    parser.add_argument(
+        "--num_val", type=int, default=500, help="Number of validation samples"
+    )
+    parser.add_argument(
+        "--num_test", type=int, default=500, help="Number of test samples"
+    )
 
     # Training parameters
-    parser.add_argument('--epochs', type=int, default=15,
-                        help='Number of training epochs')
-    parser.add_argument('--batch_size', type=int, default=32,
-                        help='Batch size')
-    parser.add_argument('--lr', type=float, default=1e-3,
-                        help='Learning rate')
-    parser.add_argument('--weight_decay', type=float, default=1e-4,
-                        help='Weight decay')
-    parser.add_argument('--dropout', type=float, default=0.3,
-                        help='Dropout probability')
+    parser.add_argument(
+        "--epochs", type=int, default=15, help="Number of training epochs"
+    )
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
+    parser.add_argument(
+        "--dropout", type=float, default=0.3, help="Dropout probability"
+    )
 
     args = parser.parse_args()
     main(args)

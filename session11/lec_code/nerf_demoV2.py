@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 # Positional Encoding
 # ============================================================================
 
+
 class PositionalEncoder:
     """
     Positional encoding to map inputs to higher-dimensional space.
@@ -36,6 +37,7 @@ class PositionalEncoder:
     gamma(p) = [sin(2^0 * pi * p), cos(2^0 * pi * p), ...,
                 sin(2^(L-1) * pi * p), cos(2^(L-1) * pi * p)]
     """
+
     def __init__(self, L):
         """
         Args:
@@ -70,10 +72,10 @@ class PositionalEncoder:
         return input_dim * 2 * self.L
 
 
-
 # ============================================================================
 # NeRF MLP Network
 # ============================================================================
+
 
 class NeRF(nn.Module):
     """
@@ -86,6 +88,7 @@ class NeRF(nn.Module):
     - Separate branches for density and color
     - View direction conditioning for color
     """
+
     def __init__(self, pos_L=10, dir_L=4, hidden_dim=256):
         super(NeRF, self).__init__()
 
@@ -97,20 +100,24 @@ class NeRF(nn.Module):
         dir_dim = self.dir_encoder.output_dim(3)  # 3D direction
 
         # Position processing layers (first 4 layers)
-        self.pos_layers1 = nn.ModuleList([
-            nn.Linear(pos_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-        ])
+        self.pos_layers1 = nn.ModuleList(
+            [
+                nn.Linear(pos_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+            ]
+        )
 
         # Position processing layers (last 4 layers, with skip)
-        self.pos_layers2 = nn.ModuleList([
-            nn.Linear(hidden_dim + pos_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-        ])
+        self.pos_layers2 = nn.ModuleList(
+            [
+                nn.Linear(hidden_dim + pos_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+            ]
+        )
 
         # Density head (single layer)
         self.density_head = nn.Linear(hidden_dim, 1)
@@ -119,10 +126,12 @@ class NeRF(nn.Module):
         self.feature_layer = nn.Linear(hidden_dim, hidden_dim)
 
         # Color head (conditioned on direction)
-        self.color_layers = nn.ModuleList([
-            nn.Linear(hidden_dim + dir_dim, hidden_dim // 2),
-            nn.Linear(hidden_dim // 2, 3),  # RGB
-        ])
+        self.color_layers = nn.ModuleList(
+            [
+                nn.Linear(hidden_dim + dir_dim, hidden_dim // 2),
+                nn.Linear(hidden_dim // 2, 3),  # RGB
+            ]
+        )
 
     def forward(self, pos: torch.Tensor, view_dir: torch.Tensor):
         """
@@ -227,6 +236,7 @@ def get_rays(H, W, focal, c2w):
 
     return rays_o, rays_d
 
+
 def sample_along_rays(rays_o, rays_d, near, far, N_samples, perturb=True):
     """
     Sample points along rays (stratified sampling).
@@ -244,8 +254,8 @@ def sample_along_rays(rays_o, rays_d, near, far, N_samples, perturb=True):
     N_rays = rays_o.shape[0]
 
     # Linearly spaced samples in [near, far]
-    t_vals = torch.linspace(0., 1., N_samples, device=rays_o.device)
-    z_vals = near * (1. - t_vals) + far * t_vals
+    t_vals = torch.linspace(0.0, 1.0, N_samples, device=rays_o.device)
+    z_vals = near * (1.0 - t_vals) + far * t_vals
     z_vals = z_vals.expand(N_rays, N_samples)
 
     # Stratified sampling with perturbation
@@ -266,7 +276,8 @@ def sample_along_rays(rays_o, rays_d, near, far, N_samples, perturb=True):
 # Volume Rendering
 # ============================================================================
 
-def volume_render(rgb, sigma, z_vals, rays_d, noise_std=0.):
+
+def volume_render(rgb, sigma, z_vals, rays_d, noise_std=0.0):
     """
     Volume rendering using the classic equation.
 
@@ -289,26 +300,26 @@ def volume_render(rgb, sigma, z_vals, rays_d, noise_std=0.):
     dists = z_vals[..., 1:] - z_vals[..., :-1]
     dists = torch.cat(
         [dists, torch.tensor([1e10], device=dists.device).expand(dists[..., :1].shape)],
-        dim=-1
+        dim=-1,
     )
 
     # Account for non-unit ray directions by scaling distances
     dists = dists * torch.norm(rays_d[..., None, :], dim=-1)
 
     # Optionally add noise to sigma (regularization)
-    if noise_std > 0.:
+    if noise_std > 0.0:
         sigma = sigma + torch.randn_like(sigma) * noise_std
 
     # Alpha values
-    alpha = 1. - torch.exp(-F.relu(sigma[..., 0]) * dists)
+    alpha = 1.0 - torch.exp(-F.relu(sigma[..., 0]) * dists)
 
     # Transmittance T_i (cumulative product of (1 - alpha))
     transmittance = torch.cumprod(
         torch.cat(
-            [torch.ones((alpha.shape[0], 1), device=alpha.device), 1. - alpha + 1e-10],
-            dim=-1
+            [torch.ones((alpha.shape[0], 1), device=alpha.device), 1.0 - alpha + 1e-10],
+            dim=-1,
         ),
-        dim=-1
+        dim=-1,
     )[:, :-1]
 
     # Weights for each sample
@@ -329,6 +340,7 @@ def volume_render(rgb, sigma, z_vals, rays_d, noise_std=0.):
 # ============================================================================
 # Analytic 3D Scene: Colored Sphere
 # ============================================================================
+
 
 def render_sphere_rays(rays_o, rays_d, radius=1.0, center=None, bg_color=None):
     """
@@ -360,7 +372,7 @@ def render_sphere_rays(rays_o, rays_d, radius=1.0, center=None, bg_color=None):
 
     # Ray-sphere intersection: ||o + t d - c||^2 = R^2
     oc = o - center
-    a = torch.sum(d * d, dim=-1)               # should be ~1
+    a = torch.sum(d * d, dim=-1)  # should be ~1
     b = 2.0 * torch.sum(oc * d, dim=-1)
     c = torch.sum(oc * oc, dim=-1) - radius**2
 
@@ -403,6 +415,7 @@ def render_sphere_rays(rays_o, rays_d, radius=1.0, center=None, bg_color=None):
 # Synthetic "NeRF" Dataset using Analytic Scene
 # ============================================================================
 
+
 class SyntheticSphereScene:
     """
     Synthetic scene for NeRF training: a colored sphere at the origin,
@@ -414,7 +427,9 @@ class SyntheticSphereScene:
     - Compute ground-truth pixel colors via analytic sphere rendering
     """
 
-    def __init__(self, num_images=40, H=64, W=64, focal=64.0, radius=1.0, cam_radius=4.0):
+    def __init__(
+        self, num_images=40, H=64, W=64, focal=64.0, radius=1.0, cam_radius=4.0
+    ):
         self.num_images = num_images
         self.H = H
         self.W = W
@@ -431,16 +446,19 @@ class SyntheticSphereScene:
             theta = 2 * np.pi * i / self.num_images
             # Simple orbit around the origin, looking at [0,0,0]
             # Up vector ~ [0,1,0]
-            c2w = torch.tensor([
-                [np.cos(theta), 0, np.sin(theta), self.cam_radius * np.sin(theta)],
-                [0,             1,             0, 0],
-                [-np.sin(theta),0, np.cos(theta), self.cam_radius * np.cos(theta)],
-                [0,             0,             0, 1]
-            ], dtype=torch.float32)
+            c2w = torch.tensor(
+                [
+                    [np.cos(theta), 0, np.sin(theta), self.cam_radius * np.sin(theta)],
+                    [0, 1, 0, 0],
+                    [-np.sin(theta), 0, np.cos(theta), self.cam_radius * np.cos(theta)],
+                    [0, 0, 0, 1],
+                ],
+                dtype=torch.float32,
+            )
             poses.append(c2w)
         return poses
 
-    def get_batch(self, batch_size=1024, device='cpu'):
+    def get_batch(self, batch_size=1024, device="cpu"):
         """
         Get a random batch of rays + ground-truth RGB.
 
@@ -474,38 +492,37 @@ class SyntheticSphereScene:
 # Training Function
 # ============================================================================
 
+
 def train_nerf(args):
     """Train NeRF model on the synthetic sphere scene."""
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     # ------------------------------------------------------------------
     # 1. Create synthetic scene (analytic 3D sphere)
     # ------------------------------------------------------------------
-    print('\nCreating synthetic sphere scene...')
+    print("\nCreating synthetic sphere scene...")
     scene = SyntheticSphereScene(
         num_images=args.num_images,
         H=args.img_size,
         W=args.img_size,
         focal=float(args.img_size),
         radius=1.0,
-        cam_radius=4.0
+        cam_radius=4.0,
     )
-    print(f'Number of training views: {args.num_images}')
-    print(f'Image resolution: {args.img_size}x{args.img_size}')
+    print(f"Number of training views: {args.num_images}")
+    print(f"Image resolution: {args.img_size}x{args.img_size}")
 
     # ------------------------------------------------------------------
     # 2. Create NeRF model
     # ------------------------------------------------------------------
-    print('\nInitializing NeRF...')
-    model = NeRF(
-        pos_L=args.pos_L,
-        dir_L=args.dir_L,
-        hidden_dim=args.hidden_dim
-    ).to(device)
+    print("\nInitializing NeRF...")
+    model = NeRF(pos_L=args.pos_L, dir_L=args.dir_L, hidden_dim=args.hidden_dim).to(
+        device
+    )
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f'Total trainable parameters: {num_params/1e6:.2f}M')
+    print(f"Total trainable parameters: {num_params/1e6:.2f}M")
 
     # Optimizer + LR scheduler
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -514,7 +531,7 @@ def train_nerf(args):
     # ------------------------------------------------------------------
     # 3. Training loop
     # ------------------------------------------------------------------
-    print('\nTraining NeRF...')
+    print("\nTraining NeRF...")
     model.train()
 
     pbar = tqdm(range(args.n_iters))
@@ -524,10 +541,12 @@ def train_nerf(args):
 
         # (b) Sample points along each ray
         pts, z_vals = sample_along_rays(
-            rays_o, rays_d,
-            near=args.near, far=args.far,
+            rays_o,
+            rays_d,
+            near=args.near,
+            far=args.far,
             N_samples=args.n_samples,
-            perturb=True
+            perturb=True,
         )
 
         # (c) Flatten points and directions for MLP: (x, d) -> (c, sigma)
@@ -543,8 +562,7 @@ def train_nerf(args):
 
         # (e) Volume render along each ray to get predicted pixel colors
         rgb_map, depth_map, acc_map, weights = volume_render(
-            rgb, sigma, z_vals, rays_d,
-            noise_std=1.0 if it < args.n_iters // 2 else 0.0
+            rgb, sigma, z_vals, rays_d, noise_std=1.0 if it < args.n_iters // 2 else 0.0
         )
 
         # (f) Photometric loss: predicted vs ground truth RGB
@@ -558,22 +576,24 @@ def train_nerf(args):
 
         # Compute PSNR for logging
         with torch.no_grad():
-            psnr = -10. * torch.log10(loss)
+            psnr = -10.0 * torch.log10(loss)
 
         if it % 100 == 0:
-            pbar.set_postfix({
-                'loss': f'{loss.item():.4f}',
-                'PSNR': f'{psnr.item():.2f} dB'
-            })
+            pbar.set_postfix(
+                {"loss": f"{loss.item():.4f}", "PSNR": f"{psnr.item():.2f} dB"}
+            )
 
-    print('\nTraining complete!')
+    print("\nTraining complete!")
 
     # Save model
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-    }, 'nerf_sphere_model.pth')
-    print('Model saved to nerf_sphere_model.pth')
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+        },
+        "nerf_sphere_model.pth",
+    )
+    print("Model saved to nerf_sphere_model.pth")
 
     return model, scene
 
@@ -582,8 +602,11 @@ def train_nerf(args):
 # Rendering Function (Novel Views)
 # ============================================================================
 
+
 @torch.no_grad()
-def render_image(model, pose, H, W, focal, near, far, N_samples, chunk=1024, device='cuda'):
+def render_image(
+    model, pose, H, W, focal, near, far, N_samples, chunk=1024, device="cuda"
+):
     """Render a full image from a camera pose using the trained NeRF."""
     model.eval()
 
@@ -597,13 +620,11 @@ def render_image(model, pose, H, W, focal, near, far, N_samples, chunk=1024, dev
 
     # Render in chunks to avoid OOM
     for i in range(0, rays_o.shape[0], chunk):
-        rays_o_chunk = rays_o[i:i + chunk]
-        rays_d_chunk = rays_d[i:i + chunk]
+        rays_o_chunk = rays_o[i : i + chunk]
+        rays_d_chunk = rays_d[i : i + chunk]
 
         pts, z_vals = sample_along_rays(
-            rays_o_chunk, rays_d_chunk,
-            near, far, N_samples,
-            perturb=False
+            rays_o_chunk, rays_d_chunk, near, far, N_samples, perturb=False
         )
 
         N_rays, N_samples, _ = pts.shape
@@ -615,8 +636,7 @@ def render_image(model, pose, H, W, focal, near, far, N_samples, chunk=1024, dev
         sigma = sigma.reshape(N_rays, N_samples, 1)
 
         rgb_map, depth_map, _, _ = volume_render(
-            rgb, sigma, z_vals, rays_d_chunk,
-            noise_std=0.0
+            rgb, sigma, z_vals, rays_d_chunk, noise_std=0.0
         )
 
         all_rgb.append(rgb_map.cpu())
@@ -632,75 +652,104 @@ def render_image(model, pose, H, W, focal, near, far, N_samples, chunk=1024, dev
 # Main
 # ============================================================================
 
+
 def main(args):
-    print('=' * 80)
-    print('NeRF Demo for Novel View Synthesis (Colored Sphere)')
-    print('Lecture 11: 3D Scene Understanding and Neural Rendering')
-    print('=' * 80)
+    print("=" * 80)
+    print("NeRF Demo for Novel View Synthesis (Colored Sphere)")
+    print("Lecture 11: 3D Scene Understanding and Neural Rendering")
+    print("=" * 80)
 
     # Train NeRF on synthetic sphere scene
     model, scene = train_nerf(args)
 
     # Render novel views
-    print('\nRendering novel views...')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("\nRendering novel views...")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Choose a few novel camera poses (offset from training poses)
     test_poses = []
     for i in range(5):
         theta = 2 * np.pi * (i / 5 + 0.1)  # offset angle
-        pose = torch.tensor([
-            [np.cos(theta), 0, np.sin(theta), scene.cam_radius * np.sin(theta)],
-            [0,             1,             0, 0],
-            [-np.sin(theta),0, np.cos(theta), scene.cam_radius * np.cos(theta)],
-            [0,             0,             0, 1]
-        ], dtype=torch.float32)
+        pose = torch.tensor(
+            [
+                [np.cos(theta), 0, np.sin(theta), scene.cam_radius * np.sin(theta)],
+                [0, 1, 0, 0],
+                [-np.sin(theta), 0, np.cos(theta), scene.cam_radius * np.cos(theta)],
+                [0, 0, 0, 1],
+            ],
+            dtype=torch.float32,
+        )
         test_poses.append(pose)
 
     fig, axes = plt.subplots(2, 5, figsize=(15, 6))
 
     for i, pose in enumerate(test_poses):
         rgb, depth = render_image(
-            model, pose,
-            scene.H, scene.W, scene.focal,
-            args.near, args.far, args.n_samples,
-            device=device
+            model,
+            pose,
+            scene.H,
+            scene.W,
+            scene.focal,
+            args.near,
+            args.far,
+            args.n_samples,
+            device=device,
         )
 
         axes[0, i].imshow(rgb)
-        axes[0, i].set_title(f'Novel View {i + 1}')
-        axes[0, i].axis('off')
+        axes[0, i].set_title(f"Novel View {i + 1}")
+        axes[0, i].axis("off")
 
-        axes[1, i].imshow(depth, cmap='viridis')
-        axes[1, i].set_title(f'Depth {i + 1}')
-        axes[1, i].axis('off')
+        axes[1, i].imshow(depth, cmap="viridis")
+        axes[1, i].set_title(f"Depth {i + 1}")
+        axes[1, i].axis("off")
 
     plt.tight_layout()
-    plt.savefig('nerf_sphere_results.png', dpi=150, bbox_inches='tight')
-    print('Results saved to nerf_sphere_results.png')
+    plt.savefig("nerf_sphere_results.png", dpi=150, bbox_inches="tight")
+    print("Results saved to nerf_sphere_results.png")
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='NeRF Demo (Synthetic Sphere)')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="NeRF Demo (Synthetic Sphere)")
 
     # Scene / data
-    parser.add_argument('--num_images', type=int, default=40, help='Number of training camera views')
-    parser.add_argument('--img_size', type=int, default=64, help='Image size (H=W)')
+    parser.add_argument(
+        "--num_images", type=int, default=40, help="Number of training camera views"
+    )
+    parser.add_argument("--img_size", type=int, default=64, help="Image size (H=W)")
 
     # Model
-    parser.add_argument('--pos_L', type=int, default=10, help='Positional encoding frequency bands for position')
-    parser.add_argument('--dir_L', type=int, default=4, help='Positional encoding frequency bands for direction')
-    parser.add_argument('--hidden_dim', type=int, default=256, help='Hidden layer width')
+    parser.add_argument(
+        "--pos_L",
+        type=int,
+        default=10,
+        help="Positional encoding frequency bands for position",
+    )
+    parser.add_argument(
+        "--dir_L",
+        type=int,
+        default=4,
+        help="Positional encoding frequency bands for direction",
+    )
+    parser.add_argument(
+        "--hidden_dim", type=int, default=256, help="Hidden layer width"
+    )
 
     # Training
-    parser.add_argument('--n_iters', type=int, default=5000, help='Number of training iterations')
-    parser.add_argument('--batch_size', type=int, default=1024, help='Batch size (number of rays)')
-    parser.add_argument('--lr', type=float, default=5e-4,help='Learning rate')
+    parser.add_argument(
+        "--n_iters", type=int, default=5000, help="Number of training iterations"
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=1024, help="Batch size (number of rays)"
+    )
+    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
 
     # Rendering / sampling
-    parser.add_argument('--near', type=float, default=2.0, help='Near clipping plane')
-    parser.add_argument('--far', type=float, default=6.0, help='Far clipping plane')
-    parser.add_argument('--n_samples', type=int, default=64, help='Number of samples per ray')
+    parser.add_argument("--near", type=float, default=2.0, help="Near clipping plane")
+    parser.add_argument("--far", type=float, default=6.0, help="Far clipping plane")
+    parser.add_argument(
+        "--n_samples", type=int, default=64, help="Number of samples per ray"
+    )
 
     args = parser.parse_args()
     main(args)

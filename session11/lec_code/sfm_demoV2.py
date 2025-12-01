@@ -23,6 +23,7 @@ np.random.seed(42)
 # 1. SYNTHETIC SCENE GENERATION
 # ============================================================================
 
+
 def generate_synthetic_scene(n_points=50):
     """
     Generate a synthetic 3D scene with known ground truth.
@@ -33,10 +34,18 @@ def generate_synthetic_scene(n_points=50):
     points_3d[:, 2] += 5  # Move points away from cameras
 
     # Add some structure: corners of a cube
-    corners = np.array([
-        [-1, -1, 4], [1, -1, 4], [1, 1, 4], [-1, 1, 4],
-        [-1, -1, 6], [1, -1, 6], [1, 1, 6], [-1, 1, 6]
-    ])
+    corners = np.array(
+        [
+            [-1, -1, 4],
+            [1, -1, 4],
+            [1, 1, 4],
+            [-1, 1, 4],
+            [-1, -1, 6],
+            [1, -1, 6],
+            [1, 1, 6],
+            [-1, 1, 6],
+        ]
+    )
     points_3d = np.vstack([points_3d, corners])
 
     return points_3d
@@ -45,11 +54,7 @@ def generate_synthetic_scene(n_points=50):
 def create_camera_matrix(focal_length=800, img_width=640, img_height=480):
     """Create intrinsic camera matrix K"""
     cx, cy = img_width / 2, img_height / 2
-    K = np.array([
-        [focal_length, 0, cx],
-        [0, focal_length, cy],
-        [0, 0, 1]
-    ])
+    K = np.array([[focal_length, 0, cx], [0, focal_length, cy], [0, 0, 1]])
     return K
 
 
@@ -76,6 +81,7 @@ def add_noise_to_points(points_2d, noise_std=1.5):
 # ============================================================================
 # 2. FUNDAMENTAL MATRIX ESTIMATION
 # ============================================================================
+
 
 def estimate_fundamental_matrix_ransac(pts1, pts2, threshold=2.0, n_iterations=1000):
     """
@@ -127,9 +133,7 @@ def estimate_fundamental_8point(pts1, pts2):
     for i in range(n):
         x1, y1 = pts1_norm[i]
         x2, y2 = pts2_norm[i]
-        A[i] = [x2 * x1, x2 * y1, x2,
-                y2 * x1, y2 * y1, y2,
-                x1, y1, 1]
+        A[i] = [x2 * x1, x2 * y1, x2, y2 * x1, y2 * y1, y2, x1, y1, 1]
 
     _, _, Vt = np.linalg.svd(A)
     F_norm = Vt[-1].reshape(3, 3)
@@ -152,11 +156,9 @@ def normalize_points(pts):
     pts_centered = pts - centroid
     scale = np.sqrt(2) / np.mean(np.linalg.norm(pts_centered, axis=1))
 
-    T = np.array([
-        [scale, 0, -scale * centroid[0]],
-        [0, scale, -scale * centroid[1]],
-        [0, 0, 1]
-    ])
+    T = np.array(
+        [[scale, 0, -scale * centroid[0]], [0, scale, -scale * centroid[1]], [0, 0, 1]]
+    )
 
     pts_hom = np.hstack([pts, np.ones((len(pts), 1))])
     pts_norm_hom = (T @ pts_hom.T).T
@@ -179,7 +181,7 @@ def compute_epipolar_inliers(pts1, pts2, F, threshold):
     l1 = (F.T @ pts2_h.T).T
 
     num = np.sum(pts2_h * l2, axis=1) ** 2
-    den = l1[:, 0]**2 + l1[:, 1]**2 + l2[:, 0]**2 + l2[:, 1]**2
+    den = l1[:, 0] ** 2 + l1[:, 1] ** 2 + l2[:, 0] ** 2 + l2[:, 1] ** 2
     d2 = num / den  # Sampson distance squared
 
     return d2 < threshold**2
@@ -188,6 +190,7 @@ def compute_epipolar_inliers(pts1, pts2, F, threshold):
 # ============================================================================
 # 3. CAMERA POSE RECOVERY
 # ============================================================================
+
 
 def essential_from_fundamental(F, K1, K2):
     """
@@ -213,9 +216,7 @@ def recover_pose_from_essential(E, pts1, pts2, K):
     if np.linalg.det(U @ Vt) < 0:
         Vt = -Vt
 
-    W = np.array([[0, -1, 0],
-                  [1,  0, 0],
-                  [0,  0, 1]])
+    W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 
     R1 = U @ W @ Vt
     R2 = U @ W.T @ Vt
@@ -234,9 +235,7 @@ def recover_pose_from_essential(E, pts1, pts2, K):
 
     for R, t in solutions:
         pts_3d = triangulate_points_simple(
-            test_pts1, test_pts2,
-            np.eye(3), np.zeros(3),
-            R, t, K
+            test_pts1, test_pts2, np.eye(3), np.zeros(3), R, t, K
         )
 
         depths1 = pts_3d[:, 2]
@@ -254,6 +253,7 @@ def recover_pose_from_essential(E, pts1, pts2, K):
 # 4. TRIANGULATION
 # ============================================================================
 
+
 def triangulate_points_simple(pts1, pts2, R1, t1, R2, t2, K):
     """
     Triangulate 3D points from two views using DLT (Direct Linear Transform).
@@ -268,12 +268,14 @@ def triangulate_points_simple(pts1, pts2, R1, t1, R2, t2, K):
         x1, y1 = pts1[i]
         x2, y2 = pts2[i]
 
-        A = np.array([
-            x1 * P1[2, :] - P1[0, :],
-            y1 * P1[2, :] - P1[1, :],
-            x2 * P2[2, :] - P2[0, :],
-            y2 * P2[2, :] - P2[1, :]
-        ])
+        A = np.array(
+            [
+                x1 * P1[2, :] - P1[0, :],
+                y1 * P1[2, :] - P1[1, :],
+                x2 * P2[2, :] - P2[0, :],
+                y2 * P2[2, :] - P2[1, :],
+            ]
+        )
 
         _, _, Vt = np.linalg.svd(A)
         X_hom = Vt[-1]
@@ -286,6 +288,7 @@ def triangulate_points_simple(pts1, pts2, R1, t1, R2, t2, K):
 # ============================================================================
 # 5. BUNDLE ADJUSTMENT
 # ============================================================================
+
 
 def bundle_adjustment(points_3d, points_2d_views, cameras, K):
     """
@@ -327,9 +330,9 @@ def bundle_adjustment(points_3d, points_2d_views, cameras, K):
         params,
         args=(n_cameras, n_points, camera_indices, point_indices, points_2d, K),
         verbose=0,
-        x_scale='jac',
+        x_scale="jac",
         ftol=1e-4,
-        method='trf'
+        method="trf",
     )
 
     optimized_params = result.x
@@ -337,28 +340,28 @@ def bundle_adjustment(points_3d, points_2d_views, cameras, K):
 
     for i in range(n_cameras):
         idx = i * 6
-        rvec = optimized_params[idx:idx + 3]
-        t = optimized_params[idx + 3:idx + 6]
+        rvec = optimized_params[idx : idx + 3]
+        t = optimized_params[idx + 3 : idx + 6]
         R, _ = cv2.Rodrigues(rvec)
         optimized_cameras.append((R, t))
 
-    optimized_points = optimized_params[n_cameras * 6:].reshape(-1, 3)
+    optimized_points = optimized_params[n_cameras * 6 :].reshape(-1, 3)
     return optimized_cameras, optimized_points
 
 
-def bundle_adjustment_residuals(params, n_cameras, n_points,
-                                camera_indices, point_indices,
-                                points_2d, K):
+def bundle_adjustment_residuals(
+    params, n_cameras, n_points, camera_indices, point_indices, points_2d, K
+):
     """Residuals for bundle adjustment."""
     cameras = []
     for i in range(n_cameras):
         idx = i * 6
-        rvec = params[idx:idx + 3]
-        t = params[idx + 3:idx + 6]
+        rvec = params[idx : idx + 3]
+        t = params[idx + 3 : idx + 6]
         R, _ = cv2.Rodrigues(rvec)
         cameras.append((R, t))
 
-    points_3d = params[n_cameras * 6:].reshape(-1, 3)
+    points_3d = params[n_cameras * 6 :].reshape(-1, 3)
 
     residuals = []
     for cam_idx, pt_idx, x_obs in zip(camera_indices, point_indices, points_2d):
@@ -379,7 +382,7 @@ def compute_reprojection_errors(points_3d, pts1, pts2, R1, t1, R2, t2, K):
     """
     errors = []
     for X, x1_obs, x2_obs in zip(points_3d, pts1, pts2):
-        for (R, t, x_obs) in [(R1, t1, x1_obs), (R2, t2, x2_obs)]:
+        for R, t, x_obs in [(R1, t1, x1_obs), (R2, t2, x2_obs)]:
             X_cam = R @ X + t
             x_proj = K @ X_cam
             x_proj = x_proj[:2] / x_proj[2]
@@ -391,13 +394,16 @@ def compute_reprojection_errors(points_3d, pts1, pts2, R1, t1, R2, t2, K):
 # 6. VISUALIZATION
 # ============================================================================
 
-def visualize_sfm_results(points_3d_gt,
-                          points_3d_sfm,
-                          points_3d_sfm_ba,
-                          cameras,
-                          points_2d_all,
-                          inliers_mask,
-                          save_path='sfm_demo_results.png'):
+
+def visualize_sfm_results(
+    points_3d_gt,
+    points_3d_sfm,
+    points_3d_sfm_ba,
+    cameras,
+    points_2d_all,
+    inliers_mask,
+    save_path="sfm_demo_results.png",
+):
     """
     Visualize SfM results:
       - 2D feature points and inlier/outlier matches
@@ -411,22 +417,24 @@ def visualize_sfm_results(points_3d_gt,
 
     # Camera 1 features
     ax1 = plt.subplot(2, 3, 1)
-    ax1.scatter(pts1_all[:, 0], pts1_all[:, 1],
-                c='blue', s=30, alpha=0.6, label='Camera 1')
-    ax1.set_title('Camera 1 - Feature Points')
-    ax1.set_xlabel('x (pixels)')
-    ax1.set_ylabel('y (pixels)')
+    ax1.scatter(
+        pts1_all[:, 0], pts1_all[:, 1], c="blue", s=30, alpha=0.6, label="Camera 1"
+    )
+    ax1.set_title("Camera 1 - Feature Points")
+    ax1.set_xlabel("x (pixels)")
+    ax1.set_ylabel("y (pixels)")
     ax1.invert_yaxis()
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
     # Camera 2 features
     ax2 = plt.subplot(2, 3, 2)
-    ax2.scatter(pts2_all[:, 0], pts2_all[:, 1],
-                c='red', s=30, alpha=0.6, label='Camera 2')
-    ax2.set_title('Camera 2 - Feature Points')
-    ax2.set_xlabel('x (pixels)')
-    ax2.set_ylabel('y (pixels)')
+    ax2.scatter(
+        pts2_all[:, 0], pts2_all[:, 1], c="red", s=30, alpha=0.6, label="Camera 2"
+    )
+    ax2.set_title("Camera 2 - Feature Points")
+    ax2.set_xlabel("x (pixels)")
+    ax2.set_ylabel("y (pixels)")
     ax2.invert_yaxis()
     ax2.legend()
     ax2.grid(True, alpha=0.3)
@@ -435,63 +443,99 @@ def visualize_sfm_results(points_3d_gt,
     ax3 = plt.subplot(2, 3, 3)
     n_show = min(30, len(pts1_all))
     for i in range(n_show):
-        color = 'green' if inliers_mask[i] else 'red'
-        ax3.plot([0, 1], [i, i], 'o-', color=color, alpha=0.6)
+        color = "green" if inliers_mask[i] else "red"
+        ax3.plot([0, 1], [i, i], "o-", color=color, alpha=0.6)
     ax3.set_xlim(-0.5, 1.5)
     ax3.set_ylim(-1, n_show)
-    ax3.set_title(f'Matches (green=inlier, red=outlier)\n'
-                  f'{np.sum(inliers_mask)} / {len(inliers_mask)} inliers')
+    ax3.set_title(
+        f"Matches (green=inlier, red=outlier)\n"
+        f"{np.sum(inliers_mask)} / {len(inliers_mask)} inliers"
+    )
     ax3.set_xticks([0, 1])
-    ax3.set_xticklabels(['Cam 1', 'Cam 2'])
+    ax3.set_xticklabels(["Cam 1", "Cam 2"])
     ax3.set_yticks([])
-    ax3.set_ylabel('match index')
+    ax3.set_ylabel("match index")
     ax3.invert_yaxis()
 
     # 3D ground truth
-    ax4 = plt.subplot(2, 3, 4, projection='3d')
-    ax4.scatter(points_3d_gt[:, 0], points_3d_gt[:, 1], points_3d_gt[:, 2],
-                c='blue', s=30, alpha=0.6, label='Ground Truth')
+    ax4 = plt.subplot(2, 3, 4, projection="3d")
+    ax4.scatter(
+        points_3d_gt[:, 0],
+        points_3d_gt[:, 1],
+        points_3d_gt[:, 2],
+        c="blue",
+        s=30,
+        alpha=0.6,
+        label="Ground Truth",
+    )
     for i, (R, t) in enumerate(cameras):
         C = -R.T @ t
-        ax4.scatter(C[0], C[1], C[2],
-                    c='black', s=80, marker='^',
-                    label=f'Camera {i+1}' if i < 2 else None)
-    ax4.set_xlabel('X')
-    ax4.set_ylabel('Y')
-    ax4.set_zlabel('Z')
-    ax4.set_title('Ground Truth 3D Scene')
+        ax4.scatter(
+            C[0],
+            C[1],
+            C[2],
+            c="black",
+            s=80,
+            marker="^",
+            label=f"Camera {i+1}" if i < 2 else None,
+        )
+    ax4.set_xlabel("X")
+    ax4.set_ylabel("Y")
+    ax4.set_zlabel("Z")
+    ax4.set_title("Ground Truth 3D Scene")
     ax4.legend()
 
     # 3D reconstruction before BA
-    ax5 = plt.subplot(2, 3, 5, projection='3d')
-    ax5.scatter(points_3d_sfm[:, 0], points_3d_sfm[:, 1], points_3d_sfm[:, 2],
-                c='red', s=30, alpha=0.7, label='SfM (before BA)')
+    ax5 = plt.subplot(2, 3, 5, projection="3d")
+    ax5.scatter(
+        points_3d_sfm[:, 0],
+        points_3d_sfm[:, 1],
+        points_3d_sfm[:, 2],
+        c="red",
+        s=30,
+        alpha=0.7,
+        label="SfM (before BA)",
+    )
     for i, (R, t) in enumerate(cameras[:2]):
         C = -R.T @ t
-        ax5.scatter(C[0], C[1], C[2], c='black', s=80, marker='^')
-    ax5.set_xlabel('X')
-    ax5.set_ylabel('Y')
-    ax5.set_zlabel('Z')
-    ax5.set_title('SfM Reconstruction (Initial)')
+        ax5.scatter(C[0], C[1], C[2], c="black", s=80, marker="^")
+    ax5.set_xlabel("X")
+    ax5.set_ylabel("Y")
+    ax5.set_zlabel("Z")
+    ax5.set_title("SfM Reconstruction (Initial)")
     ax5.legend()
 
     # 3D reconstruction after BA vs GT
-    ax6 = plt.subplot(2, 3, 6, projection='3d')
-    ax6.scatter(points_3d_gt[:, 0], points_3d_gt[:, 1], points_3d_gt[:, 2],
-                c='blue', s=30, alpha=0.3, label='Ground Truth')
-    ax6.scatter(points_3d_sfm_ba[:, 0], points_3d_sfm_ba[:, 1], points_3d_sfm_ba[:, 2],
-                c='green', s=30, alpha=0.7, label='SfM (after BA)')
+    ax6 = plt.subplot(2, 3, 6, projection="3d")
+    ax6.scatter(
+        points_3d_gt[:, 0],
+        points_3d_gt[:, 1],
+        points_3d_gt[:, 2],
+        c="blue",
+        s=30,
+        alpha=0.3,
+        label="Ground Truth",
+    )
+    ax6.scatter(
+        points_3d_sfm_ba[:, 0],
+        points_3d_sfm_ba[:, 1],
+        points_3d_sfm_ba[:, 2],
+        c="green",
+        s=30,
+        alpha=0.7,
+        label="SfM (after BA)",
+    )
     for i, (R, t) in enumerate(cameras[:2]):
         C = -R.T @ t
-        ax6.scatter(C[0], C[1], C[2], c='black', s=80, marker='^')
-    ax6.set_xlabel('X')
-    ax6.set_ylabel('Y')
-    ax6.set_zlabel('Z')
-    ax6.set_title('Overlay: GT vs SfM (after BA)')
+        ax6.scatter(C[0], C[1], C[2], c="black", s=80, marker="^")
+    ax6.set_xlabel("X")
+    ax6.set_ylabel("Y")
+    ax6.set_zlabel("Z")
+    ax6.set_title("Overlay: GT vs SfM (after BA)")
     ax6.legend()
 
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
     print(f"Results saved to {save_path}")
     plt.show()
 
@@ -499,6 +543,7 @@ def visualize_sfm_results(points_3d_gt,
 # ============================================================================
 # MAIN DEMO
 # ============================================================================
+
 
 def main():
     """
@@ -522,11 +567,13 @@ def main():
     t1 = np.zeros(3)
 
     angle = np.deg2rad(15)
-    R2 = np.array([
-        [np.cos(angle), 0, np.sin(angle)],
-        [0, 1, 0],
-        [-np.sin(angle), 0, np.cos(angle)]
-    ])
+    R2 = np.array(
+        [
+            [np.cos(angle), 0, np.sin(angle)],
+            [0, 1, 0],
+            [-np.sin(angle), 0, np.cos(angle)],
+        ]
+    )
     t2 = np.array([1.5, 0, 0])
 
     cameras_gt = [(R1, t1), (R2, t2)]
@@ -545,9 +592,7 @@ def main():
     n_outliers = int(0.2 * n_total)  # 20% wrong matches
     outlier_idx = np.random.choice(n_total, n_outliers, replace=False)
     points_2d_cam2_noisy[outlier_idx] = np.random.uniform(
-        low=[0, 0],
-        high=[640, 480],
-        size=(n_outliers, 2)
+        low=[0, 0], high=[640, 480], size=(n_outliers, 2)
     )
     print(f"  - Camera 1: {len(points_2d_cam1_noisy)} points")
     print(f"  - Camera 2: {len(points_2d_cam2_noisy)} points")
@@ -556,10 +601,7 @@ def main():
     # Step 4: Estimate fundamental matrix
     print("\n[Step 4] Estimating Fundamental Matrix with RANSAC...")
     F, inliers = estimate_fundamental_matrix_ransac(
-        points_2d_cam1_noisy,
-        points_2d_cam2_noisy,
-        threshold=2.0,
-        n_iterations=1000
+        points_2d_cam1_noisy, points_2d_cam2_noisy, threshold=2.0, n_iterations=1000
     )
     print(f"  - Found {np.sum(inliers)} / {len(inliers)} inliers")
     print(f"  - Fundamental matrix F:\n{F}")
@@ -581,16 +623,14 @@ def main():
     # Step 6: Triangulate 3D points
     print("\n[Step 6] Triangulating 3D points...")
     points_3d_sfm = triangulate_points_simple(
-        inlier_pts1, inlier_pts2,
-        R1, t1, R_est, t_est, K
+        inlier_pts1, inlier_pts2, R1, t1, R_est, t_est, K
     )
     print(f"  - Reconstructed {len(points_3d_sfm)} 3D points")
 
     # Reconstruction error vs. ground truth (up to scale)
     gt_inliers = points_3d_gt[inliers]
     scale = np.median(
-        np.linalg.norm(gt_inliers, axis=1) /
-        np.linalg.norm(points_3d_sfm, axis=1)
+        np.linalg.norm(gt_inliers, axis=1) / np.linalg.norm(points_3d_sfm, axis=1)
     )
     points_3d_sfm_scaled = points_3d_sfm * scale
 
@@ -600,8 +640,7 @@ def main():
 
     # Reprojection error before BA (in pixels)
     reproj_before = compute_reprojection_errors(
-        points_3d_sfm, inlier_pts1, inlier_pts2,
-        R1, t1, R_est, t_est, K
+        points_3d_sfm, inlier_pts1, inlier_pts2, R1, t1, R_est, t_est, K
     )
     print(f"  - Mean reprojection error before BA: {np.mean(reproj_before):.3f} px")
 
@@ -616,8 +655,7 @@ def main():
 
     # Scale optimized points for comparison with GT
     scale_opt = np.median(
-        np.linalg.norm(gt_inliers, axis=1) /
-        np.linalg.norm(points_3d_opt, axis=1)
+        np.linalg.norm(gt_inliers, axis=1) / np.linalg.norm(points_3d_opt, axis=1)
     )
     points_3d_opt_scaled = points_3d_opt * scale_opt
 
@@ -629,8 +667,7 @@ def main():
     # Reprojection error after BA
     (R1_opt, t1_opt), (R2_opt, t2_opt) = cameras_opt
     reproj_after = compute_reprojection_errors(
-        points_3d_opt, inlier_pts1, inlier_pts2,
-        R1_opt, t1_opt, R2_opt, t2_opt, K
+        points_3d_opt, inlier_pts1, inlier_pts2, R1_opt, t1_opt, R2_opt, t2_opt, K
     )
     print(f"  - Mean reprojection error after BA:  {np.mean(reproj_after):.3f} px")
 
@@ -642,7 +679,7 @@ def main():
         points_3d_opt_scaled,
         cameras_gt,
         [points_2d_cam1_noisy, points_2d_cam2_noisy],
-        inliers
+        inliers,
     )
 
     print("\n" + "=" * 70)
