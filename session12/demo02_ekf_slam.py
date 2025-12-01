@@ -371,7 +371,7 @@ def visualize_slam(
     for i in range(slam.n_landmarks):
         center, width, height, angle = slam.get_ellipse_params(i + 1, n_std=2)
         ellipse = Ellipse(
-            center, width, height, angle, fill=False, color="blue", linewidth=2
+            center, width, height, angle=angle, fill=False, color="blue", linewidth=2
         )
         ax1.add_patch(ellipse)
         ax1.scatter(center[0], center[1], c="blue", s=80, marker="s", zorder=4)
@@ -399,7 +399,7 @@ def visualize_slam(
     # Robot uncertainty ellipse
     center, width, height, angle = slam.get_ellipse_params(0, n_std=2)
     robot_ellipse = Ellipse(
-        center, width, height, angle, fill=False, color="green", linewidth=2
+        center, width, height, angle=angle, fill=False, color="green", linewidth=2
     )
     ax1.add_patch(robot_ellipse)
 
