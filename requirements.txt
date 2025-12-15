@@ -53,4 +53,4 @@ prettytable
 pycocotools
 #Session 13
 gymnasium[classic-control]
-pip install gymnasium==0.28.1
+gymnasium==0.28.1
