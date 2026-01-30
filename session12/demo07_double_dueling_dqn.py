@@ -674,7 +674,8 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Key Takeaways:")
     print("=" * 60)
-    print("""
+    print(
+        """
 Double DQN:
 - Standard DQN overestimates Q-values (max is biased estimator)
 - Double DQN decouples selection (online) from evaluation (target)
@@ -700,4 +701,5 @@ Rainbow DQN (2017) combines:
 4. Multi-step returns
 5. Distributional RL
 6. Noisy networks
-    """)
+    """
+    )

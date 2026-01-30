@@ -639,7 +639,8 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Key Takeaways:")
     print("=" * 60)
-    print("""
+    print(
+        """
 1. Visual DQN uses CNNs to process raw pixel observations
 2. Frame stacking (4 frames) captures motion information
 3. Same DQN algorithm works with visual encoder
@@ -653,4 +654,5 @@ This is the core paradigm that enabled:
 
 The visual encoder learns to extract task-relevant features
 without hand-crafted engineering - a key breakthrough!
-    """)
+    """
+    )

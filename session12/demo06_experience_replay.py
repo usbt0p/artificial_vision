@@ -522,7 +522,8 @@ def main():
     print("\n" + "=" * 60)
     print("Key Takeaways:")
     print("=" * 60)
-    print("""
+    print(
+        """
 1. Sequential RL data is highly correlated (bad for neural networks)
 2. Replay buffer stores transitions and samples randomly
 3. Random sampling breaks temporal correlations -> i.i.d. batches
@@ -543,7 +544,8 @@ Key equations:
 - Uniform: P(transition i) = 1/N
 - Prioritized: P(i) ∝ |TD_error_i|^α
 - Importance weights: w_i = (N * P(i))^(-β)
-    """)
+    """
+    )
 
 
 if __name__ == "__main__":

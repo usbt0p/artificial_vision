@@ -792,7 +792,8 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Key Takeaways:")
     print("=" * 60)
-    print("""
+    print(
+        """
 1. CNN processes egocentric visual observations
 2. Goal direction provides relative target information
 3. LSTM maintains spatial memory across timesteps
@@ -812,4 +813,5 @@ Key papers:
 - Neural SLAM (2020): Differentiable mapping + planning
 - Habitat Challenge: Large-scale navigation benchmarks
 - Object-Nav: Navigate to "find the refrigerator"
-    """)
+    """
+    )
