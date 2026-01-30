@@ -27,7 +27,7 @@ jobs:
 
       - name: Format code with Black
         run: |
-          black . || true
+          python3 -m black . || true
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
