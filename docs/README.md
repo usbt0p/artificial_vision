@@ -53,7 +53,7 @@ A well-designed and technically consistent project, with strong experimental wor
 
 ### Pros
 
-The report is well structured and argues with solid technical maturity why stability, cost, and performance change depending on the type of `skip connection`; the result graphs support these conclusions well.
+The report is well structured and argues with solid technical maturity why stability, cost, and performance change depending on the type of _skip connection_; the result graphs support these conclusions well.
 
 There is also good methodological ambition for a lab project: they compare several variants, two network depths, and multiple seeds, instead of limiting themselves to a single execution.
 
