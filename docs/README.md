@@ -3,8 +3,13 @@ This repo contains materials and a final group project for the Computer Vision (
 
 ## Project
 
-As a final project we chose to research different implementations of the U-Net architecture. We did this in a team of three and we pair programmed most of the time. You can find it on here: [session 04](../session04/labCode/)-
+As a final project we chose to research different implementations of the U-Net architecture. We did this in a team of three and we pair programmed most of the time. You can find it on here: [session 04](../session04/labCode/).
+
 In the project, we studied the role of _skip connections_ in U-Net through ablations (concat/add/attention/none) and network depths (“bigger”), analyzing computational cost, stability, and performance (IoU/loss/gradient). We added graphs to support our conclusions well.
+
+<img src="./image1.png" alt="skips" width="400"/>
+
+<img src="./image2.png" alt="losses" width="500"/>
 
 ## Overview of the course subjects
 
